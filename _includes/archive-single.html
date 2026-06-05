@@ -1,0 +1,31 @@
+{%- comment -%}
+  커스텀 목록 항목: 왼쪽 썸네일 + 오른쪽 글(제목·날짜·요약) 가로 배치 (minyeamer 스타일)
+  홈/카테고리/태그 목록 모두 이 템플릿을 쓴다. mm 루프 변수명은 항상 `post`.
+{%- endcomment -%}
+<div class="list__item">
+  <article class="archive__item my-archive-item" itemscope itemtype="https://schema.org/CreativeWork">
+    {% if post.header.teaser %}
+      <a href="{{ post.url | relative_url }}" class="my-teaser" aria-hidden="true" tabindex="-1">
+        <img src="{{ post.header.teaser | relative_url }}" alt="">
+      </a>
+    {% endif %}
+    <div class="my-archive-body">
+      <h2 class="archive__item-title no_toc" itemprop="headline">
+        <a href="{{ post.url | relative_url }}" rel="permalink">{{ post.title }}</a>
+      </h2>
+      <p class="page__meta">
+        <span class="page__meta-date">
+          <i class="far fa-calendar-alt" aria-hidden="true"></i>
+          <time datetime="{{ post.date | date_to_xmlschema }}">{{ post.date | date: "%Y.%m.%d" }}</time>
+        </span>
+        {% if post.category %}
+          <span class="page__meta-sep"></span>
+          <span class="my-meta-cat">{{ post.category }}</span>
+        {% endif %}
+      </p>
+      {% if post.excerpt %}
+        <p class="archive__item-excerpt" itemprop="description">{{ post.excerpt | markdownify | strip_html | strip_newlines | truncate: 160 }}</p>
+      {% endif %}
+    </div>
+  </article>
+</div>
