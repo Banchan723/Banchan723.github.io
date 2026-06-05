@@ -1,0 +1,18 @@
+# Hugo + Stack 테마 메인 설정
+baseURL                = "https://banchan723.github.io/"
+languageCode           = "ko"
+title                  = "독학 노트"
+theme                  = "hugo-theme-stack"
+defaultContentLanguage = "ko"
+hasCJKLanguage         = true   # 한국어 요약·단어수 올바르게
+
+[pagination]
+  pagerSize = 10
+
+[permalinks]
+  post = "/p/:slug/"
+  page = "/:slug/"
+
+# 검색(JSON 인덱스) + RSS 출력
+[outputs]
+  home = ["HTML", "RSS", "JSON"]

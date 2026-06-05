@@ -1,19 +1,17 @@
 ---
 title: "C++ 포인터 — 주소를 들고 다닌다는 것"
 date: 2026-06-06
-canonical_topic: pointer
-context: cpp
-category: cpp
-tags: [pointer, memory]
-level: beginner
-status: published
-last_reviewed: 2026-06-06
-tool_versions: {}
-source: notion
-slug: pointer-cpp
-excerpt: "포인터는 값이 아니라 '값이 사는 주소'를 들고 다니는 변수다. 8바이트 낭비 의문, *p와 p의 차이, 클래스면 -> 연산자까지 — 혼자 막혔던 지점을 정리했다."
-header:
-  teaser: /assets/images/teasers/cpp.svg
+slug: "pointer-cpp"
+description: "포인터는 값이 아니라 '값이 사는 주소'를 들고 다니는 변수다. 8바이트 낭비 의문, *p와 p의 차이, 클래스면 -> 연산자까지 혼자 막혔던 지점을 정리했다."
+categories:
+  - "C++"
+tags:
+  - "포인터"
+  - "메모리"
+# 아래는 검증/중복판정용 커스텀 필드 (테마는 무시)
+canonical_topic: "pointer"
+context: "cpp"
+level: "beginner"
 ---
 
 > 이 글은 혼자 공부하며 이해한 것을 정리한 **학습 노트**입니다. 틀린 부분이 있을 수 있어요.
@@ -55,12 +53,14 @@ int* p = &hp;   // p 는 hp가 어디 사는지(주소)를 안다.  & = "주소"
 
 **① "포인터가 8바이트면 그게 낭비 아닌가?"**
 처음엔 이게 모순처럼 느껴졌다. 답은 **경우를 나눠야** 했다.
+
 - `int`(4바이트)를 가리키려고 포인터(8바이트)를 쓰면 → 오히려 더 크다. 낭비 맞다.
 - 800바이트 구조체를 가리키면 → 복사 800 vs 주소 8. 엄청난 절약.
 
 → 결론: **포인터의 메모리 이득은 "가리키는 대상이 8바이트보다 클 때"만 생긴다.** 작은 건 그냥 값으로 쓰는 게 낫다. 내 의심이 틀린 게 아니라, 조건을 몰랐던 거였다.
 
 **② `*p` 와 그냥 `p` 의 차이**
+
 - `*p` → "그 주소로 가서 값을 꺼내/바꿔라" (역참조)
 - `p` → 주소 그 자체
 

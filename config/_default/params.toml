@@ -1,0 +1,49 @@
+# Stack 테마 파라미터
+mainSections   = ["post"]
+rssFullContent = true
+
+[footer]
+  since      = 2026
+  customText = "혼자 공부한 기록"
+
+# 다크 기본 + 토글 버튼
+[colorScheme]
+  toggle  = true
+  default = "dark"
+
+[sidebar]
+  compact  = false
+  subtitle = "혼자 공부한 걸 차곡차곡 기록합니다."
+  avatar   = ""   # 아바타 이미지는 나중에(PNG). 지금은 비움.
+
+[article]
+  toc         = true
+  readingTime = true
+
+  [article.list]
+    showTags = true   # 목록에서 태그 칩 표시
+
+  [article.license]
+    enabled = false
+
+# 홈 우측 위젯: 검색 / 아카이브 / 카테고리 / 태그클라우드
+[widgets]
+  [[widgets.homepage]]
+    type = "search"
+  [[widgets.homepage]]
+    type = "archives"
+    [widgets.homepage.params]
+      limit = 5
+  [[widgets.homepage]]
+    type = "categories"
+    [widgets.homepage.params]
+      limit = 10
+  [[widgets.homepage]]
+    type = "tag-cloud"
+    [widgets.homepage.params]
+      limit = 10
+  [[widgets.page]]
+    type = "toc"
+
+[comments]
+  enabled = false
