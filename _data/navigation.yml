@@ -6,3 +6,22 @@ main:
     url: /categories/
   - title: "태그"
     url: /tags/
+
+# 왼쪽 사이드바 카테고리 트리
+sidebar-categories:
+  - title: "분야별 글"
+    children:
+      - title: "C++"
+        url: /categories/#cpp
+      - title: "언리얼"
+        url: /categories/#unreal
+      - title: "블렌더"
+        url: /categories/#blender
+      - title: "Tripo 3D"
+        url: /categories/#tripo
+  - title: "전체 보기"
+    children:
+      - title: "모든 카테고리"
+        url: /categories/
+      - title: "태그 목록"
+        url: /tags/

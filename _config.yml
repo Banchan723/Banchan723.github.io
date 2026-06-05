@@ -55,12 +55,15 @@ tag_archive:
 
 # --- 글 기본값 ---
 defaults:
+  # 글(post): 왼쪽 사이드바에 카테고리 메뉴 + 목차
   - scope:
       path: ""
       type: posts
     values:
       layout: single
       author_profile: true
+      sidebar:
+        nav: "sidebar-categories"   # 왼쪽 카테고리 트리
       read_time: true
       comments: false        # 댓글은 나중에(utterances 등) 결정
       share: false
@@ -68,6 +71,14 @@ defaults:
       show_date: true
       toc: true              # 글 목차 자동
       toc_sticky: true
+  # 일반 페이지(홈·카테고리·태그): 동일한 왼쪽 사이드바
+  - scope:
+      path: ""
+      type: pages
+    values:
+      author_profile: true
+      sidebar:
+        nav: "sidebar-categories"
 
 # --- 페이지네이션 ---
 paginate: 10

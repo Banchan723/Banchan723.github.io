@@ -11,6 +11,9 @@ last_reviewed: 2026-06-06
 tool_versions: {}
 source: notion
 slug: pointer-cpp
+excerpt: "포인터는 값이 아니라 '값이 사는 주소'를 들고 다니는 변수다. 8바이트 낭비 의문, *p와 p의 차이, 클래스면 -> 연산자까지 — 혼자 막혔던 지점을 정리했다."
+header:
+  teaser: /assets/images/teasers/cpp.svg
 ---
 
 > 이 글은 혼자 공부하며 이해한 것을 정리한 **학습 노트**입니다. 틀린 부분이 있을 수 있어요.

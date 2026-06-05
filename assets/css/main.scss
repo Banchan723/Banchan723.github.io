@@ -1,0 +1,18 @@
+---
+# minimal-mistakes 커스텀 CSS (이 파일이 테마 기본 CSS를 덮어쓴다)
+---
+
+@charset "utf-8";
+
+@import "minimal-mistakes/skins/{{ site.minimal_mistakes_skin | default: 'default' }}";
+@import "minimal-mistakes";
+
+/* 테마 기본 푸터의 "Powered by Minimal Mistakes" 크레딧 숨김 (우리 푸터로 대체) */
+.page__footer-copyright {
+  display: none;
+}
+
+/* 본문 가독성 살짝 정리 */
+.page__content {
+  line-height: 1.75;
+}
