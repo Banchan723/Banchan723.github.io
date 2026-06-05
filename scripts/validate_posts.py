@@ -49,16 +49,37 @@ def load_taxonomy():
 
 
 def split_front_matter(text):
-    if not text.startswith("---"):
+    # 줄 단위로 단독인 '---' 만 구분자로 인정 (본문 수평선·값 내 --- 오인 방지)
+    lines = text.split("\n")
+    if not lines or lines[0].strip() != "---":
         return None, None
-    parts = text.split("---", 2)
-    if len(parts) < 3:
+    end = None
+    for i in range(1, len(lines)):
+        if lines[i].strip() == "---":
+            end = i
+            break
+    if end is None:
         return None, None
-    raw = parts[1]
+    raw = "\n".join(lines[1:end])
     try:
         return yaml.safe_load(raw), raw
     except yaml.YAMLError as e:
         return ("YAML_ERROR:" + str(e)), raw
+
+
+def date_ok(v):
+    # YAML이 날짜/시각 객체로 파싱했으면 통과
+    if isinstance(v, (datetime.date, datetime.datetime)):
+        return True
+    s = str(v)
+    # 문자열은 정확히 YYYY-MM-DD 이고 실제 존재하는 날짜여야 함
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", s):
+        return False
+    try:
+        datetime.date.fromisoformat(s)
+        return True
+    except ValueError:
+        return False
 
 
 def as_date_str(v):
@@ -140,8 +161,8 @@ def validate_post(path, contexts, categories):
 
     # 날짜
     if "date" in data and data["date"] not in (None, ""):
-        if not DATE_RE.match(as_date_str(data["date"])):
-            local.append(f"date 는 YYYY-MM-DD 형식이어야 함: {data['date']}")
+        if not date_ok(data["date"]):
+            local.append(f"date 는 실제 존재하는 YYYY-MM-DD 여야 함: {data['date']}")
 
     return local, data
 
@@ -160,6 +181,7 @@ def main():
                 md_files.append(os.path.join(dirpath, fn))
 
     dedup = {}
+    slugs = {}
     checked = 0
     for path in sorted(md_files):
         rel = os.path.relpath(path, ROOT).replace("\\", "/")
@@ -170,6 +192,8 @@ def main():
         if data and data.get("canonical_topic") and data.get("context"):
             key = (str(data["canonical_topic"]), str(data["context"]))
             dedup.setdefault(key, []).append(rel)
+        if data and data.get("slug"):
+            slugs.setdefault(str(data["slug"]), []).append(rel)
 
     for key, paths in dedup.items():
         if len(paths) > 1:
@@ -177,6 +201,14 @@ def main():
                 f"중복 (canonical_topic={key[0]}, context={key[1]})",
                 [f"같은 키의 글 {len(paths)}개: " + ", ".join(paths) +
                  "  → 신규가 아니라 기존 글 수정/추가여야 함"]))
+
+    # slug 전역 중복 → /p/{slug}/ URL 충돌
+    for slug, paths in slugs.items():
+        if len(paths) > 1:
+            errors.append((
+                f"slug 중복 '{slug}'",
+                [f"같은 slug 글 {len(paths)}개: " + ", ".join(paths) +
+                 "  → URL(/p/{slug}/) 충돌. slug는 글마다 고유해야 함"]))
 
     print(f"검사한 글: {checked}개")
     if errors:
