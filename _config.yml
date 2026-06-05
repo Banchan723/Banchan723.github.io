@@ -9,8 +9,7 @@ subtitle: "C++ · 언리얼 · 블렌더 · 3D — 배운 걸 차곡차곡"
 description: "혼자 공부하며 이해한 것을 기록하는 학습 블로그"
 lang: ko
 locale: "ko-KR"
-# url 은 GitHub 계정 정하면 채운다. 예: https://{아이디}.github.io
-url: ""
+url: "https://banchan723.github.io"
 # baseurl 은 보통 비움(사용자 페이지 {아이디}.github.io 인 경우)
 baseurl: ""
 
