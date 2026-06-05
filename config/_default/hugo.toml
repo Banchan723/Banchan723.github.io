@@ -1,10 +1,12 @@
 # Hugo + Stack 테마 메인 설정
 baseURL                = "https://banchan723.github.io/"
-languageCode           = "ko"
+locale                 = "ko-KR"
 title                  = "독학 노트"
 theme                  = "hugo-theme-stack"
 defaultContentLanguage = "ko"
 hasCJKLanguage         = true   # 한국어 요약·단어수 올바르게
+timeZone               = "Asia/Seoul"
+buildFuture            = true   # 한국시간 글이 UTC 기준 "미래"라 빠지는 문제 방지
 
 [pagination]
   pagerSize = 10
@@ -13,6 +15,9 @@ hasCJKLanguage         = true   # 한국어 요약·단어수 올바르게
   post = "/p/:slug/"
   page = "/:slug/"
 
-# 검색(JSON 인덱스) + RSS 출력
-[outputs]
-  home = ["HTML", "RSS", "JSON"]
+[languages]
+  [languages.ko]
+    label  = "한국어"
+    locale = "ko-KR"
+    title  = "독학 노트"
+    weight = 1
