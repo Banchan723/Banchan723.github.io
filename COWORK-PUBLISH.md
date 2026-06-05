@@ -1,7 +1,6 @@
-# COWORK-PUBLISH — 발행 1사이클 지시문
+# COWORK-PUBLISH — 발행 1사이클 지시문 (Hugo + Stack)
 
-> 정본: SYSTEM-SPEC 7절. Cowork(데스크탑)가 노션 글을 블로그로 발행할 때 **이 절차를 그대로** 따른다.
-> 사용자가 Cowork에게: "COWORK-PUBLISH.md 절차대로 노션 '○○○' 글을 발행해줘" 라고 지시한다.
+> 정본: SYSTEM-SPEC. Cowork(데스크탑)가 노션 글을 블로그로 발행할 때 **이 절차를 그대로** 따른다.
 
 ## 사용자가 Cowork에게 보내는 한 줄 (복붙용)
 
@@ -13,47 +12,50 @@ C:\LearningBlog\COWORK-PUBLISH.md 와 SYSTEM-SPEC.md 를 읽고,
 
 ## Cowork가 매번 따르는 절차 (10단계)
 
-1. **대상 선정** — 노션 `학습 기록` DB에서 `블로그行=☑` & `상태=정리완료`인 행을 가져온다. 여러 개면 사용자에게 어느 것부터 할지 묻는다.
+1. **대상 선정** — 노션 `학습 기록` DB에서 `블로그行=☑` & `상태=정리완료`인 행. 여러 개면 사용자에게 물음.
 
-2. **중복 검색** — 그 행의 `canonical_topic`+`context`로 `_posts/**` 의 기존 글 front matter를 검색한다.
-   - 같은 키 글이 **있으면** → 사용자에게 묻는다: **[신규 / 기존에 추가 / 기존 수정]**
-   - **없으면** → 신규.
+2. **중복 검색** — 그 행의 `canonical_topic`+`context`로 `content/post/**/index.md` 의 기존 글을 검색.
+   - 있으면 → [신규 / 기존에 추가 / 기존 수정] 사용자에게 물음. 없으면 신규.
 
-3. **마크다운 작성** — SYSTEM-SPEC 4절 front matter 스키마를 정확히 따른다.
-   - 파일 위치: `_posts/{context}/{date}-{slug}.md` (예: `_posts/cpp/2026-06-06-pointer-cpp.md`)
-   - slug = 영문 소문자/하이픈. 한번 정하면 불변.
+3. **파일 생성** — `content/post/{slug}/index.md` (페이지 번들). SYSTEM-SPEC 4절 front matter 스키마 정확히 준수.
+   - slug = 영문 소문자/하이픈, 불변. URL = `/p/{slug}/`.
    - title = 한글 가능하되 **항상 따옴표**.
-   - 노션의 "막혔던 부분·헷갈린 것"을 본문 **"## 내가 헷갈렸던 점"** 섹션으로 반드시 살린다.
+   - `categories`·`tags` 는 `data/taxonomy.yaml` 에 있는 것만. `context`는 category에 묶인 값과 일치.
+   - 노션의 "막힌 부분·헷갈린 것"을 본문 **"## 내가 헷갈렸던 점"** 섹션으로 반드시 살린다.
 
-4. **오류 교정** — 명백히 틀린 내용은 교정하고 "(교정: ~)" 표시. 코드 예시는 가능하면 문법/컴파일 확인. 도구 글이면 `tool_versions` 기록 (예: 언리얼 5.7).
+4. **오류 교정** — 명백히 틀린 내용은 교정 표시. 코드 예시는 가능하면 문법 확인. 도구 글이면 버전 명시.
 
-5. **이미지** — 있으면 `assets/images/{slug}/001.png` 형태로 저장. 마크다운 링크 경로는 항상 `/assets/...` (슬래시 `/`, 역슬래시 금지).
-   - **썸네일**: 목록용 썸네일은 카테고리만 맞으면 자동(`/assets/images/teasers/{category}.svg`). 따로 안 해도 됨. 특정 글에 전용 썸네일을 쓰려면 front matter에 `header: { teaser: /assets/images/{slug}/cover.png }`.
+5. **이미지/커버** — 본문 이미지는 번들 안에(`content/post/{slug}/img.png`) 두고 상대경로 참조.
+   - 카드 커버: front matter `image: "cover.png"` (번들 내 파일). 없으면 카드는 텍스트만 — 그래도 OK.
 
-6. **코드블록 안전** — 코드에 `{{ }}` 나 `{% %}` 가 있으면 `{% raw %}...{% endraw %}` 로 감싼다 (Jekyll 빌드 깨짐 방지).
+6. **Hugo 충돌 주의** — 코드에 `{{ }}` `{%  %}` 가 있으면 코드펜스(```)로 확실히 감싼다.
 
-7. **관련 글 링크** — 같은 context의 관련 기존 글을 최대 3개 본문 하단에 링크.
+7. **검토 요청** — 초안을 사용자에게 보여주고 **5체크박스**만 확인:
+   ☐ 제목  ☐ 내용 맞음  ☐ 코드 돌아감  ☐ 이미지  ☐ 발행할까?
+   기본값은 Cowork가 정하고 사용자는 승인/거절만.
 
-8. **검토 요청** — 초안을 사용자에게 보여주고 **5체크박스**만 확인받는다:
-   - ☐ 제목 OK  ☐ 내용 맞음  ☐ 코드 돌아감  ☐ 이미지 OK  ☐ 발행할까?
-   기본값은 Cowork가 정하고, 사용자는 승인/거절만.
+8. **로컬 검증** — push 전:
+   ```
+   python scripts/validate_posts.py
+   ```
+   통과해야 함(실패하면 고치고 재시도). 가능하면 `C:\hugo2\hugo.exe` 로 로컬 빌드/미리보기도.
 
-9. **발행** — 로컬 검증 후 push.
-   - 발행 전 `python scripts/validate_posts.py` 통과 확인 (실패하면 고치고 재시도).
-   - `git add` → `git commit` → `git push origin main`.
-   - GitHub Actions(deploy.yml) 빌드를 기다린다. **실패하면 로그를 "고칠 파일 / 줄 / 원인 / 수정안" 4줄로 요약**해 사용자에게 보고 (raw 로그 그대로 던지지 말 것).
+9. **발행** — `git add` → `git commit` → `git push origin main`.
+   - GitHub Actions(hugo.yml: 검증→빌드→배포)를 기다린다.
+   - **실패하면 로그를 "고칠 파일 / 줄 / 원인 / 수정안" 4줄로 요약**해 보고 (raw 로그 금지).
 
-10. **상태 마감** — 빌드 성공 + 실제 URL(`{url}/{category}/{slug}/`) 접속 확인까지 되면, 노션 행을 `상태=발행완료`, `발행일=오늘`로 갱신. **셋 다 돼야** 발행완료.
+10. **상태 마감** — 빌드 성공 + 실제 URL(`https://banchan723.github.io/p/{slug}/`) 접속 확인까지 되면,
+    노션 행을 `상태=발행완료`, `발행일=오늘`로 갱신. **셋 다 돼야** 발행완료.
 
-## "기존에 추가"일 때 (같은 주제 더 배웠을 때)
+## "기존에 추가"일 때
 
-- 기존 글 하단에 `## 추가 학습 (YYYY-MM-DD)` 섹션을 만들어 append. 원본 보존.
-- `last_reviewed`를 오늘로 갱신. 난이도가 올라갔으면 `status: revised`.
-- "추가 학습"이 **5회를 넘으면** → 개정판 작성 또는 시리즈 분리를 사용자에게 제안.
+- 기존 글 하단에 `## 추가 학습 (YYYY-MM-DD)` 섹션 append. 원본 보존.
+- 난이도 올랐으면 `level` 갱신. "추가 학습" 5회 넘으면 시리즈 분리 제안.
 
 ## 절대 하지 말 것
 
-- taxonomy.yml에 없는 카테고리/태그 사용 (필요하면 사용자 승인 후 taxonomy에 먼저 추가).
-- slug 변경 (주소가 깨진다).
-- 비밀정보(API 키·토큰·개인정보)나 유료강의 캡처/원문 발행.
-- 검증(`validate_posts.py`) 실패 상태로 push.
+- `data/taxonomy.yaml`에 없는 카테고리/태그 사용 (필요하면 사용자 승인 후 먼저 추가).
+- slug 변경 (주소 깨짐).
+- 비밀정보·유료강의 자료 발행.
+- 검증 실패 상태로 push.
+- `themes/` 안의 테마 파일 수정 (커스텀은 repo 루트의 `layouts/`·`config/` override로).

@@ -38,6 +38,14 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: 글 검증 (front matter / taxonomy)
+        run: |
+          pip install pyyaml
+          python scripts/validate_posts.py
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v5

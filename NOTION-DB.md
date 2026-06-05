@@ -55,6 +55,17 @@
 | 중급 | intermediate |
 | 고급 | advanced |
 
+## 3-1. context → 카테고리 매핑 (블로그 표시명)
+
+노션 `context` 값이 블로그 카테고리(표시명)로 연결된다. 허용 목록은 `data/taxonomy.yaml` 정본.
+
+| context | 블로그 카테고리 |
+|---|---|
+| cpp | C++ |
+| unreal | Unreal |
+| blender | Blender |
+| tripo | Tripo 3D |
+
 ## 4. 흐름
 
 1. 공부하다 한 주제가 끝나면 → 노션에 새 행 추가, 6칸 채움.
