@@ -1,0 +1,24 @@
+# Jekyll 빌드 산출물
+_site/
+.jekyll-cache/
+.jekyll-metadata
+.sass-cache/
+
+# Ruby
+vendor/
+.bundle/
+# Gemfile.lock 은 커밋한다 (빌드 재현성). 무시하지 않음.
+
+# 파이썬 (검증 스크립트)
+__pycache__/
+*.pyc
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 에디터
+.vscode/
+.idea/

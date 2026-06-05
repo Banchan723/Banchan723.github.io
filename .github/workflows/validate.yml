@@ -1,0 +1,33 @@
+# ============================================================
+#  validate.yml — 글 검증만 (빠른 피드백용)
+#  PR/푸시 때 front matter·taxonomy 규칙 위반을 즉시 잡는다.
+#  배포(deploy.yml)와 별개로, 검증만 빠르게 돌려 깨진 글을 조기 발견.
+#  정본: SYSTEM-SPEC 5절 절대규칙
+# ============================================================
+name: Validate Posts
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "_posts/**"
+      - "_data/taxonomy.yml"
+      - "scripts/validate_posts.py"
+  pull_request:
+    paths:
+      - "_posts/**"
+      - "_data/taxonomy.yml"
+      - "scripts/validate_posts.py"
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - run: pip install pyyaml
+      - name: front matter / taxonomy 검증
+        run: python scripts/validate_posts.py

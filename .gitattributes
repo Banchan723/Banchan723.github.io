@@ -1,0 +1,15 @@
+# 줄바꿈 고정 — Windows CRLF로 인한 가짜 diff 방지 (SYSTEM-SPEC 5절)
+* text=auto eol=lf
+*.md   text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.html text eol=lf
+*.rb   text eol=lf
+
+# 이미지 등 바이너리는 변환 금지
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary

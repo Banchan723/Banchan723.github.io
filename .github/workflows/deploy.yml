@@ -1,0 +1,64 @@
+# ============================================================
+#  deploy.yml — GitHub Pages 클라우드 빌드 + 배포
+#  로컬에 Ruby/Jekyll 설치 불필요. push 하면 GitHub이 빌드한다.
+#  정본: SYSTEM-SPEC 2절(빌드=Actions), 5절(발행 전 검증)
+# ============================================================
+name: Build & Deploy (GitHub Pages)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:   # 수동 실행 버튼
+
+# Pages 배포에 필요한 권한
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 동시 배포 1개로 제한
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  # 1) 발행 전 글 검증 — 깨진 글은 배포 자체를 막는다
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - run: pip install pyyaml
+      - name: front matter / taxonomy 검증
+        run: python scripts/validate_posts.py
+
+  # 2) Jekyll 빌드
+  build:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+      - id: pages
+        uses: actions/configure-pages@v5
+      - name: Jekyll 빌드
+        run: bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}"
+        env:
+          JEKYLL_ENV: production
+      - uses: actions/upload-pages-artifact@v3
+
+  # 3) Pages 배포
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

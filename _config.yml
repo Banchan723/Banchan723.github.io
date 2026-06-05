@@ -1,0 +1,68 @@
+# ============================================================
+#  학습 블로그 — Jekyll 설정
+#  정본: SYSTEM-SPEC.md (이 설정은 spec 2절 결정 사항을 따른다)
+# ============================================================
+
+# --- 사이트 기본 ---
+title: "독학 노트"
+subtitle: "C++ · 언리얼 · 블렌더 · 3D — 배운 걸 차곡차곡"
+description: "혼자 공부하며 이해한 것을 기록하는 학습 블로그"
+lang: ko
+locale: "ko-KR"
+# url 은 GitHub 계정 정하면 채운다. 예: https://{아이디}.github.io
+url: ""
+# baseurl 은 보통 비움(사용자 페이지 {아이디}.github.io 인 경우)
+baseurl: ""
+
+# --- 테마 (spec: minimal-mistakes remote_theme) ---
+remote_theme: "mmistakes/minimal-mistakes@4.26.2"
+minimal_mistakes_skin: "default"  # 취향 결정 후 변경 가능: air, dark, contrast 등
+
+# --- 플러그인 ---
+plugins:
+  - jekyll-remote-theme
+  - jekyll-include-cache
+  - jekyll-feed
+  - jekyll-sitemap
+  - jekyll-paginate
+
+# --- 글(_posts) 처리 ---
+# _posts 하위 폴더(cpp/unreal/...)도 Jekyll이 자동 수집한다.
+# 카테고리는 폴더가 아니라 front matter의 category 값으로 정해진다.
+permalink: /:categories/:slug/   # 주소에 slug 사용 (slug 불변 규칙과 연결)
+
+# --- 검색 (테마 내장. v1에서 켜만 두고 강화는 v3) ---
+search: true
+search_full_content: true
+
+# --- 글 기본값 ---
+defaults:
+  - scope:
+      path: ""
+      type: posts
+    values:
+      layout: single
+      author_profile: true
+      read_time: true
+      comments: false        # 댓글은 나중에(utterances 등) 결정
+      share: false
+      related: true          # 관련 글 노출 (테마 기능)
+      show_date: true
+      toc: true              # 글 목차 자동
+      toc_sticky: true
+
+# --- 페이지네이션 ---
+paginate: 10
+paginate_path: /page:num/
+
+# --- 빌드 제외 ---
+exclude:
+  - SYSTEM-SPEC.md
+  - NOTION-DB.md
+  - COWORK-PUBLISH.md
+  - README.md
+  - scripts/
+  - Gemfile
+  - Gemfile.lock
+  - vendor/
+  - .github/
