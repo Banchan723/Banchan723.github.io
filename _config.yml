@@ -5,7 +5,7 @@
 
 # --- 사이트 기본 ---
 title: "독학 노트"
-subtitle: "C++ · 언리얼 · 블렌더 · 3D — 배운 걸 차곡차곡"
+subtitle: ""
 description: "혼자 공부하며 이해한 것을 기록하는 학습 블로그"
 lang: ko
 locale: "ko-KR"
@@ -26,7 +26,7 @@ author:
 
 # --- 테마 (spec: minimal-mistakes remote_theme) ---
 remote_theme: "mmistakes/minimal-mistakes@4.26.2"
-minimal_mistakes_skin: "default"  # 취향 결정 후 변경 가능: air, dark, contrast 등
+minimal_mistakes_skin: "dark"  # 다크 배경. 다른 옵션: default, air, contrast, dirt, neon, mint, plum, sunrise
 
 # --- 플러그인 ---
 plugins:
@@ -54,16 +54,15 @@ tag_archive:
   path: /tags/
 
 # --- 글 기본값 ---
+# 왼쪽 사이드바는 _includes/sidebar.html(커스텀)이 처리한다:
+# 프로필 + "글이 실제로 있는 분야만" 동적 표시. (빈 분야 미리 안 만듦)
 defaults:
-  # 글(post): 왼쪽 사이드바에 카테고리 메뉴 + 목차
   - scope:
       path: ""
       type: posts
     values:
       layout: single
       author_profile: true
-      sidebar:
-        nav: "sidebar-categories"   # 왼쪽 카테고리 트리
       read_time: true
       comments: false        # 댓글은 나중에(utterances 등) 결정
       share: false
@@ -71,14 +70,11 @@ defaults:
       show_date: true
       toc: true              # 글 목차 자동
       toc_sticky: true
-  # 일반 페이지(홈·카테고리·태그): 동일한 왼쪽 사이드바
   - scope:
       path: ""
       type: pages
     values:
       author_profile: true
-      sidebar:
-        nav: "sidebar-categories"
 
 # --- 페이지네이션 ---
 paginate: 10

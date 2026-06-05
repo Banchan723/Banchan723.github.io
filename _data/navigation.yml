@@ -7,21 +7,5 @@ main:
   - title: "태그"
     url: /tags/
 
-# 왼쪽 사이드바 카테고리 트리
-sidebar-categories:
-  - title: "분야별 글"
-    children:
-      - title: "C++"
-        url: /categories/#cpp
-      - title: "언리얼"
-        url: /categories/#unreal
-      - title: "블렌더"
-        url: /categories/#blender
-      - title: "Tripo 3D"
-        url: /categories/#tripo
-  - title: "전체 보기"
-    children:
-      - title: "모든 카테고리"
-        url: /categories/
-      - title: "태그 목록"
-        url: /tags/
+# 왼쪽 사이드바 분야 목록은 _includes/sidebar.html 이 동적으로 생성한다.
+# (글이 실제로 있는 분야만 표시 — 빈 분야 미리 안 만듦)
