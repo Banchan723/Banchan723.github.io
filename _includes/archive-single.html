@@ -4,9 +4,15 @@
 {%- endcomment -%}
 <div class="list__item">
   <article class="archive__item my-archive-item" itemscope itemtype="https://schema.org/CreativeWork">
+    {%- comment -%} 썸네일: 글에 지정된 게 있으면 그걸, 없으면 카테고리 기본 썸네일 자동 {%- endcomment -%}
     {% if post.header.teaser %}
+      {% assign teaser_img = post.header.teaser %}
+    {% elsif post.category %}
+      {% assign teaser_img = "/assets/images/teasers/" | append: post.category | append: ".svg" %}
+    {% endif %}
+    {% if teaser_img %}
       <a href="{{ post.url | relative_url }}" class="my-teaser" aria-hidden="true" tabindex="-1">
-        <img src="{{ post.header.teaser | relative_url }}" alt="">
+        <img src="{{ teaser_img | relative_url }}" alt="">
       </a>
     {% endif %}
     <div class="my-archive-body">

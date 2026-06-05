@@ -28,6 +28,7 @@ C:\LearningBlog\COWORK-PUBLISH.md 와 SYSTEM-SPEC.md 를 읽고,
 4. **오류 교정** — 명백히 틀린 내용은 교정하고 "(교정: ~)" 표시. 코드 예시는 가능하면 문법/컴파일 확인. 도구 글이면 `tool_versions` 기록 (예: 언리얼 5.7).
 
 5. **이미지** — 있으면 `assets/images/{slug}/001.png` 형태로 저장. 마크다운 링크 경로는 항상 `/assets/...` (슬래시 `/`, 역슬래시 금지).
+   - **썸네일**: 목록용 썸네일은 카테고리만 맞으면 자동(`/assets/images/teasers/{category}.svg`). 따로 안 해도 됨. 특정 글에 전용 썸네일을 쓰려면 front matter에 `header: { teaser: /assets/images/{slug}/cover.png }`.
 
 6. **코드블록 안전** — 코드에 `{{ }}` 나 `{% %}` 가 있으면 `{% raw %}...{% endraw %}` 로 감싼다 (Jekyll 빌드 깨짐 방지).
 
