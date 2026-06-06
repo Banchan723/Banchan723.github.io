@@ -1,59 +1,75 @@
 # ▶ 다음 세션 이어서 할 일 (인수인계)
 
-> 갱신: 2026-06-06. 블로그는 **Hugo + 커스텀 테마**로 라이브(https://banchan723.github.io).
-> 시스템(노션→Cowork→검증→발행 파이프라인) 정본은 `SYSTEM-SPEC.md`.
+> 갱신: 2026-06-06. **검증 게이트 + 자동발행 시스템**을 설계 확정하고 문서화까지 마침. 다음 = 실제 구현.
+> 블로그는 라이브: https://banchan723.github.io (Hugo 커스텀 테마). 레포: github.com/Banchan723/Banchan723.github.io (퍼블릭).
 
 ---
 
-## 이번 세션에 한 일 (2026-06-06)
+## 0. 한 줄
 
-### 1. Stack 테마 → 커스텀 테마 전면 교체 ✅ (라이브 반영 완료)
-claude.ai Design 시안(`design_handoff_banchan_blog`, 터미널/IDE 감성)을 Hugo 커스텀 테마로 변환.
-- `layouts/`: baseof·home·single·list·page + 사이드바/헤더/카드 partial, 코드블록 render hook(Chroma+신호등바+copy), TIL 숏코드
-- `assets/`: 디자인 토큰 CSS(다크+라이트) + 클라이언트 JS(검색/카테고리·태그 필터/정렬/테마토글/TOC active/copy)
-- `config`: `theme=` 제거(자체 layouts), Chroma highlight·TOC 설정, `[profile]` params
-- `data/taxonomy.yaml`: 카테고리별 색(C++ #5aa2ff · Unreal #4dd5d5 · Blender #ffa65c · Tripo 3D #b98cff)
-- 검증: Hugo 0.162.1 빌드 22p, validate_posts 통과, 홈/글 시각 확인, **커밋·푸시·Actions 배포 성공** (커밋 79cd3f6)
+**공부한 걸 Claude가 엄격 채점해서 "진짜 이해했다" 통과하면, 태블릿만으로도 알아서 블로그에 글이 올라가는 시스템.** 머리 쓰는 일(출제·채점·글작성)은 무료 Claude 앱, 발행은 GitHub Actions(공짜). 집 컴퓨터 불필요.
 
-### 2. 콘텐츠 작성 원칙 확정 ✅ (정본 문서 갱신, 미커밋)
-첫 글이 "AI가 쓴 일반 튜토리얼"처럼 읽힌다는 문제 → Codex 교차검증 후 원칙 정립.
-- **제목 = 개념명 그 자체** ("C++ 포인터"). 같은 개념 재학습 → 기존 글에 누적(중복판정 시스템과 정합). 감성 비유/과장 제목 금지.
-- **본문 = 디버깅 로그 골격**: 막힌 점 → 확인한 코드 → 결과/동작 → 그래서 이렇게 이해했다 → 아직 모르는 것
-- **정확성 방어**: 단정 일반론 줄이기(범위 한정), 모르는 것 명시, 노션에 없는 지식 임의 추가 금지, 환경값(주소 등) 지어내지 않기
-- 반영처: `SYSTEM-SPEC.md` 4-1절(신규), `NOTION-DB.md` 2절(경험 데이터 9칸으로 보강), `COWORK-PUBLISH.md`(발행 전 콘텐츠 체크리스트)
+## 1. 먼저 읽을 정본 (순서대로)
 
-### 3. 첫 글(포인터) 디버깅 로그로 재작성 ✅ (미커밋)
-`content/post/pointer-cpp/index.md`. title "C++ 포인터"(감성 부제 제거). 사용자 실제 막힌 점 3개(8바이트 의문/`*p`vs`p`/`->`) 살림. slug·canonical_topic·context 불변 유지. 검증기 통과.
-- **미완**: `## 결과 / 동작`에 실제 컴파일 출력값이 비어 있음(로컬에 컴파일러 없어 안 지어냄, 표준 보장 관계만 기술). → **사용자가 직접 코드 돌려 진짜 출력 채우면 완성.**
+1. **SYSTEM-SPEC.md** — 시스템 단일 정본(아키텍처·결정·한계·상태머신·콘텐츠 철학 4-1).
+2. **GRADING-PROTOCOL.md** — 엄격 채점 규칙(Claude 앱이 따름).
+3. **NOTION-DB.md** — 노션 DB 스키마·상태·본문 섹션(아직 안 만듦, 여기 보고 생성).
+4. (참고) COWORK-PUBLISH.md — 옛 수동 발행. **대체됨.** 예외 수동발행 때만.
 
-### 4. '요즘 공부 중' 위젯 구조 정비 ✅
-디자인 더미값(Unreal C++ 45% 등) 제거. 위젯 데이터를 `data/learning.yaml`로 분리(클로드 갱신/노션 동기화의 목적지). 사이드바가 그 파일을 읽음. 항목 0개면 위젯 자동 숨김.
-- 결정된 운영 방식: **노션 학습 진행 DB → 발행 때 동기화 → learning.yaml → 위젯**. 진행도는 **% 진행바(체감 이해도, 주관 수치)** 유지.
+## 2. 확정된 설계 (2026-06-06 사용자 승인)
 
-### 5. 코드블록 가독성 + 줄번호 거터 ✅
-사용자 디자인 값 반영. 주석 밝게(#7f8da3 이탤릭), 코드블록 배경 분리(#161d27 + 보더 #2e3a48 + radius 10 + 옅은 그림자), 본문 글자 #dbe3ef / 줄간격 1.85, 전체 배경 완화(#0c1118).
-- **줄번호 거터**: config `lineNos=true, lineNumbersInTable=true`. 거터 살짝 어둡게 + 우측 보더, 줄번호색 #65728a.
-- **신호등 점 제거** → cbar에 파일명 + copy만. 파일명은 코드펜스 `title="..."` 정보스트링 우선(없으면 언어별 기본명).
-- **copy JS 수정**: lineNumbersInTable이면 코드가 마지막 칼럼 `<pre>`라, `.lntable td.lntd:last-child pre`를 복사(줄번호 제외).
-- 코드블록은 라이트 모드에서도 다크 패널 유지(밝은 글자 상속).
-- Codex 리뷰 반영: 끝 개행만 제거(`strings.TrimRight`, 앞 빈 줄 보존), 코드 칼럼만 가로 스크롤(긴 줄이 페이지 안 밀게 `max-width:0;width:100%`), 복사는 `textContent`+끝개행 제거.
+- **B1 방식**: 채점·글작성 = 무료 Claude 앱 세션. 발행만 GitHub Actions가 자동. Claude API 안 씀 → 공짜.
+- **3구역**: ①공부·검증(태블릿, Claude앱+Notion커넥터) → ②발행(Actions, 노션→파일→커밋, LLM없음) → ③빌드·배포(기존 hugo.yml).
+- **엄격 채점**: 변형문제 + **직접 돌린 출력** 제시해야 통과. 통과근거 노션 기록.
+- **통과=바로 발행**(별도 승인 없음). **같은 개념=기존 글 누적**. **하루 1번 자동 + 수동 버튼**.
+- **콘텐츠 철학 개정**(4-1): "설명 금지" → "**근거 없는 설명만 금지**". 본문은 독자 순서, 로그는 증거. 채점 통과 답변이 readability 원재료.
 
----
+## 3. 이번 세션에 한 일 ✅ (전부 미커밋 — 문서만 수정)
 
-## 커밋 상태
-- 커스텀 테마 교체(79cd3f6) + 위 2~5(글 재작성·작성원칙 정본·위젯 구조·코드블록 가독성) **전부 커밋·푸시·배포 완료.**
-- 라이브(https://banchan723.github.io) 반영됨.
+- 검증 게이트 설계를 적대적 검증(Codex 3회: 설계/실패모드 36개/콘텐츠품질)까지 거쳐 확정.
+- **SYSTEM-SPEC.md 전면 개정** — v2(게이트+자동발행+상태머신+보안) + 4-1 콘텐츠 철학 개정.
+- **NOTION-DB.md 전면 개정** — v2 스키마(검증 필드)·상태머신·본문 섹션(BLOG_MD 마커).
+- **GRADING-PROTOCOL.md 신규** — 엄격 채점 규칙.
+- **COWORK-PUBLISH.md** — 대체됨 배너.
+- ⚠️ **노션엔 아직 아무것도 안 만듦.** 코드(스크립트·워크플로)도 아직 안 만듦.
 
-## 다음 할 일 (우선순위)
-1. **'요즘 공부 중' 채우기** — 사용자가 지금 실제 공부 중인 항목 2~3개(라벨+체감 정도) 주면 `data/learning.yaml`에 입력.
-2. **노션 학습 진행 DB 생성** — 사용자 워크스페이스에 만들어 노션 연동의 소스로. (현재 노션엔 블로그 학습DB가 없음 — TwinProject 페이지들만 존재.)
-3. **포인터 글 출력값 채우기** — 사용자가 VS Code/웹컴파일러로 코드 실행 → 진짜 주소·출력값을 `## 결과 / 동작`에.
-4. **미커밋 변경 커밋·푸시** — 위 1~3 정리되면.
-5. (선택) Stack 서브모듈(`themes/hugo-theme-stack`) 제거 — 테마 교체 끝났으니.
-6. (확인) 프로필 일부 더미 가능성 — `config/_default/params.toml` `[profile]`(name/role/bio/location/since). 실제값 맞는지 점검.
+## 4. 남은 빌드 단계 (다음 세션, 순서대로)
 
-## 빌드/도구 메모
-- Hugo: `C:\hugo2\hugo.exe` (0.162.1, ≥0.158 필수). 빌드 `hugo --gc --minify`.
-- Python(검증): `C:\Users\chanyoung\AppData\Local\Microsoft\WindowsApps\python3.exe scripts/validate_posts.py`
-- 로컬 컴파일러 없음(C++ 출력 검증 불가) — 코드 출력은 사용자가 직접 실행해 채움.
-- 디자인 원본: `C:\Users\chanyoung\Downloads\깃 블로그\design_handoff_banchan_blog\`
+> 페어 미세스텝 아님 — 차분히 구현. 코드 수정 후 Codex 교차검증(codex-gate) 필수.
+
+1. **노션 "학습 기록" DB 생성** (Notion MCP `notion-create-database`). NOTION-DB.md 스키마대로. 부모 페이지 = 사용자에게 어디 둘지 확인(현재 노션엔 TwinProject 페이지들만 존재).
+2. **노션 "블로그 발행 규칙" 페이지 생성** — taxonomy(data/taxonomy.yaml 복제)·front matter 스키마·4-1 글 구조·템플릿. Claude 앱이 글 쓸 때 매번 읽을 단일 규칙판.
+3. **`scripts/notion_publish.py` 작성** (CI에서 실행):
+   - Notion REST API로 상태=`발행준비` 행 폴링 → 락(`처리중`).
+   - 페이지 본문에서 `BLOG_MD_BEGIN`/`BLOG_MD_END` 사이 코드블록 **그대로 추출**(변환 X). 100블록 pagination·2000자 rich_text 이어붙이기 처리.
+   - DB 속성에서 front matter 조립(제목 따옴표, context→categories 매핑, 난이도→level).
+   - 이미지: v1은 텍스트 전용(이미지 있으면 `발행실패`로 빼고 집에서). (이미지 자동 다운로드는 후순위 TODO.)
+   - 처리방식=`기존글추가`면 기존 slug 파일에 `## 추가 학습 (날짜)` append, 아니면 신규 파일.
+   - `content/post/{slug}/index.md` 작성 → 멱등(이미 같으면 skip).
+   - 성공: 상태=`발행완료` + 발행일/커밋/URL 기록. 실패: 상태=`발행실패` + 오류요약(본문 자동수정 금지).
+4. **`.github/workflows/publish-from-notion.yml` 작성**: `schedule`(하루 1번, Asia/Seoul 고려 cron) + `workflow_dispatch`. `permissions: contents: write`. 단계: checkout → setup python → pip install requests pyyaml → notion_publish.py → validate_posts.py → 변경 있으면 commit+push(=hugo.yml 트리거). 시크릿 `NOTION_TOKEN`,`NOTION_DB_ID`.
+5. **`scripts/validate_posts.py`에 readability 체크 추가** — SYSTEM-SPEC 4-1 (5): 필수 섹션 존재, 코드블록 있는데 `## 결과 / 동작` 비면 실패(cpp 등), 상투어·문장길이 경고.
+6. **포인터 글 새 구조로 재작성** — 4-1 (3) 구조(이 글에서 이해할 것/읽기 전 배경/.../확인 질문). **레퍼런스 예시**. 단 `## 결과 / 동작`은 사용자가 직접 코드 돌려 진짜 출력 채워야 완성(현재 비어 있어 새 규칙상 발행 불가).
+7. **전체 한 바퀴 테스트** — 노션 토큰·시크릿 세팅(아래 사용자 작업) 후, 작은 글감 1개로 공부→채점→발행 end-to-end.
+8. 다 되면 **커밋·푸시**.
+
+## 5. 사용자만 할 수 있는 일 (블로킹 — 같이 해야 함)
+
+- **[#1] 노션 Internal Integration 발급** — notion.so/my-integrations → New integration → 토큰 복사. (이번 세션에 안내했으나 미완.)
+- **[#2] 위 DB 생성 후, 그 DB를 #1 통합에 공유** (DB 우상단 ··· → Connections → 통합 추가).
+- **[#3] GitHub repo Secrets 등록** — Settings → Secrets and variables → Actions: `NOTION_TOKEN`(=#1 토큰), `NOTION_DB_ID`(=생성된 DB ID, 내가 알려줌).
+- **[#4] GitHub Settings → Actions → Workflow permissions** = Read and write (또는 워크플로 permissions로 지정 — 본 설계는 후자라 불필요할 수도).
+- **[#5] 모바일/태블릿 Claude 앱에 Notion 커넥터 연결** 확인.
+
+## 6. 주의 / 한계 (SYSTEM-SPEC 3절)
+
+- 자가채점 관대편향(엄격모드+통과근거로 완화, 완전제거 X), 코드출력 환각(직접 돌린 출력 요구로 방어), 사용량 한도, 통과=바로발행이라 글 오류는 사후 수정.
+- 드리프트 방지: 코드↔정본 충돌 시 코드/실제 노션 상태 신뢰. 정본 임의 변경 금지(사용자 확정만).
+
+## 7. 빌드/도구 메모
+
+- Hugo: `C:\hugo2\hugo.exe` (0.162.1, ≥0.158). 빌드 `hugo --gc --minify`.
+- Python(검증): `C:\Users\chanyoung\AppData\Local\Microsoft\WindowsApps\python3.exe scripts/validate_posts.py` (로컬 `python`은 Store stub라 깨짐).
+- 로컬 C++ 컴파일러 없음 — 코드 출력은 사용자가 직접 실행해 채움.
+- notion_publish.py는 CI(Linux)에서 `requests`로 Notion API 호출. 로컬 테스트엔 사용자 토큰 필요.
+- gh CLI 이 환경 bash에 없음 — 시크릿은 GitHub 웹 UI로.

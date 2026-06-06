@@ -1,4 +1,13 @@
-# COWORK-PUBLISH — 발행 1사이클 지시문 (Hugo + Stack)
+# COWORK-PUBLISH — (구) 수동 발행 지시문 ⚠️ 대체됨
+
+> ⚠️ **2026-06-06: 이 문서는 옛 "Cowork 수동 발행" 모델이다. 검증 게이트 + 자동발행(GitHub Actions) 설계로 대체됨.**
+> 현재 정본: **SYSTEM-SPEC.md**(시스템) + **GRADING-PROTOCOL.md**(채점) + **NOTION-DB.md**(노션) + **NEXT-SESSION.md**(다음 할 일).
+> 아래 절차 중 살아있는 부분: 글 작성 규칙(중복검색·taxonomy·slug 불변·검증 통과·Hugo 충돌 주의)은 여전히 유효하나, **발행 트리거는 이제 사람이 아니라 Actions**다.
+> 집 데스크탑(이 Claude Code)에서 이미지 많은 글·디버깅 때 **예외적으로** 수동 발행할 때만 아래 참고.
+
+---
+
+# (구) COWORK-PUBLISH — 발행 1사이클 지시문 (Hugo + Stack)
 
 > 정본: SYSTEM-SPEC. Cowork(데스크탑)가 노션 글을 블로그로 발행할 때 **이 절차를 그대로** 따른다.
 
