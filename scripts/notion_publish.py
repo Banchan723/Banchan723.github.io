@@ -303,91 +303,138 @@ def is_heading(block):
     return block.get("type") in ("heading_1", "heading_2", "heading_3")
 
 
+# 노션 코드블록 language → Hugo/chroma 친화 토큰
+CODE_LANG_MAP = {
+    "c++": "cpp",
+    "c#": "csharp",
+    "plain text": "",
+    "plain_text": "",
+    "": "",
+}
+
+
+def _rich_text_md(rich):
+    """rich_text 배열 → 인라인 마크다운(코드/볼드/이탤릭/취소선/링크 보존).
+    인라인 코드는 다른 강조와 겹치지 않게 백틱만 적용."""
+    out = []
+    for seg in rich or []:
+        t = seg.get("plain_text", "")
+        if t == "":
+            continue
+        ann = seg.get("annotations", {}) or {}
+        href = seg.get("href")
+        if ann.get("code"):
+            t = f"`{t}`"
+        else:
+            if ann.get("bold"):
+                t = f"**{t}**"
+            if ann.get("italic"):
+                t = f"*{t}*"
+            if ann.get("strikethrough"):
+                t = f"~~{t}~~"
+        if href:
+            t = f"[{t}]({href})"
+        out.append(t)
+    return "".join(out)
+
+
+def render_block_md(block):
+    """노션 블록 1개 → 마크다운 문자열 (지원: 헤딩/문단/코드/리스트/인용/구분선/이미지).
+    바깥 코드블록 래퍼 없이 블록 구조를 그대로 마크다운으로 옮긴다(펜스 충돌 원천 제거)."""
+    btype = block.get("type")
+    payload = block.get(btype, {}) or {}
+    rich = payload.get("rich_text", [])
+
+    if btype == "heading_1":
+        return "# " + _rich_text_md(rich)
+    if btype == "heading_2":
+        return "## " + _rich_text_md(rich)
+    if btype == "heading_3":
+        return "### " + _rich_text_md(rich)
+    if btype == "paragraph":
+        return _rich_text_md(rich)
+    if btype == "code":
+        lang = (payload.get("language") or "").lower()
+        lang = CODE_LANG_MAP.get(lang, lang)
+        body = _rich_text_plain(rich)   # 코드 내부는 raw (인라인 md 적용 안 함)
+        return f"```{lang}\n{body}\n```"
+    if btype == "bulleted_list_item":
+        return "- " + _rich_text_md(rich)
+    if btype == "numbered_list_item":
+        return "1. " + _rich_text_md(rich)
+    if btype == "quote":
+        return "> " + _rich_text_md(rich)
+    if btype == "divider":
+        return "---"
+    if btype == "image":
+        src = payload.get("external") or payload.get("file") or {}
+        url = src.get("url", "")
+        cap = _rich_text_plain(payload.get("caption", []))
+        return f"![{cap}]({url})"
+    # 미지원 블록: 평문이라도 있으면 살리고, 없으면 건너뜀
+    return _rich_text_md(rich)
+
+
 def extract_blog_markdown(blocks):
     """
-    "블로그 본문" 섹션의 코드블록에서 raw 마크다운을 추출.
-    우선순위:
-      1) BLOG_MD_BEGIN / BLOG_MD_END 마커 사이의 code 블록 (마커는 본문/주석/코드 어디든)
-      2) "블로그 본문" 헤딩 다음에 나오는 첫 code 블록
-    code 블록의 rich_text 2000자 분할은 _rich_text_plain 이 이미 이어붙인다.
+    BLOG_MD_BEGIN / BLOG_MD_END 마커 사이의 노션 블록을 마크다운으로 변환해 반환.
+    (옛 방식인 '바깥 코드블록 래핑'은 노션 마크다운 import가 4백틱도 3백틱으로
+     정규화해 안쪽 ``` 펜스와 충돌하므로 폐기. 이제 본문은 평범한 마크다운으로
+     쓰고, 여기서 블록 구조를 그대로 변환한다.)
+    마커가 없으면 "블로그 본문" 헤딩 뒤 ~ 페이지 끝을 변환(fallback).
     """
-    # --- 1) 마커 기반: 마커가 보이는 구간 안의 code 블록을 모두 모은다 ---
+    # --- 1) 마커 기반 ---
     in_marker = False
     marker_seen = False
     marker_closed = False
     collected = []
     for block in blocks:
         text = block_plain_text(block)
-        btype = block.get("type")
-
-        if not in_marker and MARK_BEGIN in text:
-            in_marker = True
-            marker_seen = True
-            # 같은 블록에 BEGIN/END가 함께 있고 code 블록이면 그 사이만 — 드문 케이스
-            if btype == "code" and MARK_END in text:
-                inner = _between_markers(text)
-                if inner.strip():
-                    collected.append(inner)
-                in_marker = False
-                marker_closed = True
-                continue
-            # BEGIN 과 본문이 같은 code 블록에 있는 경우: BEGIN 뒤 본문도 수집
-            # (한 줄에 BEGIN만 있는 게 정상 경로지만, 본문이 붙어와도 잃지 않게)
-            if btype == "code":
-                inner = text.split(MARK_BEGIN, 1)[1]
-                if inner.strip():
-                    collected.append(inner)
+        if not in_marker:
+            if MARK_BEGIN in text:
+                in_marker = True
+                marker_seen = True
             continue
-
-        if in_marker:
-            if MARK_END in text:
-                in_marker = False
-                marker_closed = True
-                # END 가 code 블록 안에 있고 코드 일부면 잘라 담는다
-                if btype == "code":
-                    inner = text.split(MARK_END, 1)[0]
-                    if inner.strip():
-                        collected.append(inner)
-                continue
-            if btype == "code":
-                collected.append(text)
+        if MARK_END in text:
+            in_marker = False
+            marker_closed = True
+            break
+        rendered = render_block_md(block)
+        if rendered and rendered.strip():
+            collected.append(rendered)
 
     if marker_seen:
-        # BEGIN 을 봤는데 END 를 끝까지 못 만남 → 엉뚱한 블록까지 발행 위험 → 명시 실패
         if not marker_closed:
             raise PublishError(
                 f"{MARK_BEGIN} 마커는 있으나 {MARK_END} 마커를 찾지 못함 "
                 f"(마커가 닫히지 않음 — 본문 작성 확인 필요)"
             )
-        md = "\n".join(c for c in collected).strip("\n")
+        md = "\n\n".join(collected).strip("\n")
         if md.strip():
             return md
-        # 마커는 있는데 코드블록이 비었음 → 작성 실수로 본다
-        raise PublishError("BLOG_MD 마커는 있으나 그 사이 코드블록 본문이 비어 있음")
+        raise PublishError("BLOG_MD 마커는 있으나 그 사이 본문이 비어 있음")
 
-    # --- 2) 헤딩 기반: "블로그 본문" 헤딩 다음 첫 code 블록 ---
+    # --- 2) 헤딩 기반 fallback: "블로그 본문" 헤딩 다음 ~ 끝 ---
     after_heading = False
+    collected = []
     for block in blocks:
-        if is_heading(block):
-            htext = block_plain_text(block)
-            after_heading = (BLOG_HEADING in htext)
+        if is_heading(block) and BLOG_HEADING in block_plain_text(block):
+            after_heading = True
             continue
-        if after_heading and block.get("type") == "code":
-            md = block_plain_text(block).strip("\n")
-            if md.strip():
-                return md
-            raise PublishError("'블로그 본문' 헤딩 다음 코드블록이 비어 있음")
+        if after_heading:
+            rendered = render_block_md(block)
+            if rendered and rendered.strip():
+                collected.append(rendered)
+    if after_heading:
+        md = "\n\n".join(collected).strip("\n")
+        if md.strip():
+            return md
+        raise PublishError("'블로그 본문' 헤딩 다음 본문이 비어 있음")
 
     raise PublishError(
         "본문에서 블로그 마크다운을 찾지 못함 "
-        "(BLOG_MD_BEGIN/END 마커나 '블로그 본문' 헤딩+코드블록 필요)"
+        "(BLOG_MD_BEGIN/END 마커 또는 '블로그 본문' 헤딩 필요)"
     )
-
-
-def _between_markers(text):
-    if MARK_BEGIN in text and MARK_END in text:
-        return text.split(MARK_BEGIN, 1)[1].split(MARK_END, 1)[0]
-    return ""
 
 
 def scan_blocks_for_media(blocks):
