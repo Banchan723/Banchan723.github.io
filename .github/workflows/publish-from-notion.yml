@@ -1,0 +1,70 @@
+# ============================================================
+#  노션 "학습 기록" DB → 블로그 자동발행 (LLM 없는 멍청한 파이프)
+#  발행준비 행 폴링 → 본문 추출 → front matter 조립 → 파일 작성
+#  → 검증 → 변경 있으면 commit + push (push 가 hugo.yml 빌드 트리거)
+#  SYSTEM-SPEC 1·8·9 참고. 권한은 contents:write 만.
+# ============================================================
+name: Publish from Notion
+
+on:
+  schedule:
+    # 매일 07:00 KST(Asia/Seoul) = 22:00 UTC (전날). KST = UTC+9.
+    - cron: "0 22 * * *"
+  workflow_dispatch:
+
+# 보안: 이 워크플로는 콘텐츠 커밋만 한다 (최소 권한, SYSTEM-SPEC 9).
+permissions:
+  contents: write
+
+# 자동발행끼리 겹치지 않도록 직렬화 (중복발행 방지 보조).
+concurrency:
+  group: "publish-from-notion"
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      NOTION_DB_ID: ${{ secrets.NOTION_DB_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install deps
+        run: pip install requests pyyaml
+
+      - name: 노션 → 블로그 파일 작성
+        run: python scripts/notion_publish.py
+
+      - name: 글 검증 (front matter / taxonomy)
+        run: |
+          if [ -f scripts/validate_posts.py ]; then
+            python scripts/validate_posts.py
+          else
+            echo "validate_posts.py 없음 — 검증 스킵"
+          fi
+
+      - name: 변경 있으면 커밋 & 푸시
+        run: |
+          if [ -n "$(git status --porcelain content/)" ]; then
+            git config user.name  "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add content/
+            git commit -m "자동발행: 노션→블로그"
+            git push
+            echo "변경 푸시 완료 — hugo.yml 빌드가 트리거됩니다."
+          else
+            echo "발행할 변경 없음 — 커밋 생략."
+          fi

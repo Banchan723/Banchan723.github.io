@@ -11,8 +11,14 @@ validate_posts.py — 발행 전 글 검증기 (Hugo + Stack / SYSTEM-SPEC 절�
   - title 따옴표 (YAML 콜론 사고 방지)
   - 글 파일 위치(content/post/<폴더>/index.md) 규칙
   - 중복: 같은 (canonical_topic + context) 글이 두 개 이상인지
+  - readability(매체별) 프록시 (SYSTEM-SPEC 4-1 (5)):
+      · 필수 섹션 존재 / 권고 섹션(WARN)
+      · 매체(modality)별 증거 강제 (code/visual/video)
+      · 이미지 alt 텍스트 누락 (FAIL)
+      · 상투어 과다 / 긴 문장·문단 (WARN)
 
-오류 하나라도 있으면 exit 1 (Actions 빌드 차단).
+FAIL(오류)이 하나라도 있으면 exit 1 (Actions 빌드 차단).
+WARN(경고)은 출력만 하고 빌드는 막지 않는다(참고용).
 사용: python scripts/validate_posts.py
 """
 
@@ -37,7 +43,42 @@ LEVELS = {"beginner", "intermediate", "advanced"}
 SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}")
 
+# ── readability(매체별) 검증용 상수 (SYSTEM-SPEC 4-1 (5)) ──────────────
+MODALITIES = {"code", "visual", "video"}
+
+# 출력 자리에 아직 실제 출력을 안 채운 placeholder 표식.
+# 보통 인용블록 `> ⚠️ 직접 돌린 출력 채우기...` 형태. 이 표식만 있으면
+# "출력 없음(미완성 = 발행 불가)"으로 본다.
+PLACEHOLDER_MARK = "직접 돌린 출력 채우기"
+
+# 필수 섹션: (헤딩 표시명, 매칭 키워드들) — 본문 어디든 하나라도 있으면 통과
+# (누적 글 "## 추가 학습"도 같은 헤딩을 다시 쓰므로 "존재"로만 판정)
+REQUIRED_SECTIONS = [
+    ("## 이 글에서 이해할 것", ["이 글에서 이해할 것"]),
+    ("## 읽기 전 최소 배경", ["읽기 전 최소 배경"]),
+    ("## 내가 막혔던 점 / 틀린 가설", ["내가 막혔던 점", "틀린 가설"]),
+    ("## 확인한 증거", ["확인한 증거"]),
+    ("## 그래서 이렇게 이해했다", ["그래서 이렇게 이해했다"]),
+    ("## 아직 모르는 것", ["아직 모르는 것"]),
+    ("## 확인 질문", ["확인 질문"]),
+]
+# 권고 섹션(없으면 WARN)
+RECOMMENDED_SECTIONS = [
+    ("## 다른 예시에 적용해보기", ["다른 예시에 적용해보기"]),
+]
+
+CLICHES = ["쉽게 말해", "일반적으로", "중요합니다", "효율적입니다"]
+CLICHE_LIMIT = 3          # 이 횟수 "이상"이면 WARN
+MAX_SENTENCE_LEN = 120    # 한 문장 글자수 초과 → WARN
+MAX_PARA_SENTENCES = 5    # 한 문단 문장수 초과 → WARN
+
+IMG_RE = re.compile(r"!\[(?P<alt>[^\]]*)\]\((?P<url>[^)]*)\)")
+URL_RE = re.compile(r"https?://\S+")
+HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s")
+LIST_ITEM_RE = re.compile(r"^\s*(?:[-*+]\s+|\d+[.)]\s+)")
+
 errors = []
+warnings = []
 
 
 def load_taxonomy():
@@ -88,9 +129,334 @@ def as_date_str(v):
     return str(v)
 
 
+def split_body(text):
+    """front matter 를 제외한 본문 마크다운만 반환."""
+    lines = text.split("\n")
+    if lines and lines[0].strip() == "---":
+        for i in range(1, len(lines)):
+            if lines[i].strip() == "---":
+                return "\n".join(lines[i + 1:])
+    return text  # front matter 없으면 전체가 본문
+
+
+def parse_fences(body):
+    """본문을 (코드펜스 밖 텍스트, 코드펜스 블록 리스트, 펜스제거 줄목록)으로 나눈다.
+
+    반환:
+      prose_lines : 코드펜스 밖 줄들의 리스트 (산문 분석용)
+      fences      : 각 코드블록의 (시작줄 idx, 내용 문자열) 리스트
+    """
+    lines = body.split("\n")
+    prose_lines = []
+    fences = []
+    in_fence = False
+    fence_marker = None
+    cur = []
+    cur_start = 0
+    for idx, ln in enumerate(lines):
+        stripped = ln.strip()
+        is_fence = stripped.startswith("```") or stripped.startswith("~~~")
+        if not in_fence and is_fence:
+            in_fence = True
+            fence_marker = stripped[:3]
+            cur = []
+            cur_start = idx
+            continue
+        if in_fence and is_fence and stripped.startswith(fence_marker):
+            in_fence = False
+            fences.append((cur_start, "\n".join(cur)))
+            cur = []
+            continue
+        if in_fence:
+            cur.append(ln)
+        else:
+            prose_lines.append(ln)
+    if in_fence:  # 닫히지 않은 펜스 — 안전하게 닫힌 것으로 취급
+        fences.append((cur_start, "\n".join(cur)))
+    return prose_lines, fences
+
+
+def section_index(body):
+    """본문을 헤딩 단위 섹션으로 쪼갠다. {정규화 헤딩텍스트: 섹션 본문} dict 반환.
+
+    헤딩 텍스트는 소문자/공백제거 없이 원문 유지(키워드 부분일치로 매칭).
+    같은 헤딩이 여러 번이면(누적 글) 본문을 이어붙인다.
+    """
+    lines = body.split("\n")
+    sections = {}
+    cur_head = None
+    buf = []
+    in_fence = False
+    fence_marker = None
+    for ln in lines:
+        stripped = ln.strip()
+        is_fence = stripped.startswith("```") or stripped.startswith("~~~")
+        if not in_fence and is_fence:
+            in_fence = True
+            fence_marker = stripped[:3]
+        elif in_fence and is_fence and stripped.startswith(fence_marker):
+            in_fence = False
+        # 펜스 안의 '#' 는 헤딩이 아님
+        if not in_fence and HEADING_RE.match(ln):
+            if cur_head is not None:
+                sections[cur_head] = sections.get(cur_head, "") + "\n" + "\n".join(buf)
+            cur_head = stripped.lstrip("#").strip()
+            buf = []
+        else:
+            buf.append(ln)
+    if cur_head is not None:
+        sections[cur_head] = sections.get(cur_head, "") + "\n" + "\n".join(buf)
+    return sections
+
+
+def find_section(sections, keywords):
+    """헤딩 텍스트에 keywords 중 하나라도 들어간 섹션 본문을 합쳐 반환. 없으면 None."""
+    found = []
+    for head, content in sections.items():
+        if any(kw in head for kw in keywords):
+            found.append(content)
+    if not found:
+        return None
+    return "\n".join(found)
+
+
+def has_heading(sections, keywords):
+    return any(any(kw in head for kw in keywords) for head in sections)
+
+
+def section_with_children(body, keywords):
+    """keywords 와 매칭되는 헤딩의 본문을 '하위 섹션까지 포함'해서 반환.
+
+    section_index 는 ## 와 ### 를 평면 분할하므로, '확인한 증거(##)' 아래
+    '### 코드1/코드2' 의 코드펜스·placeholder 가 부모 섹션에 안 잡힌다.
+    출력 유무 판정은 그 하위까지 봐야 하므로, 여기서는 매칭 헤딩 레벨부터
+    다음 '같은-or-상위 레벨' 헤딩 직전까지를 한 덩어리로 묶어 돌려준다.
+    여러 번 매칭되면(누적 글) 이어붙인다. 없으면 None.
+    """
+    lines = body.split("\n")
+    chunks = []
+    in_fence = False
+    fence_marker = None
+    i = 0
+    n = len(lines)
+    while i < n:
+        ln = lines[i]
+        stripped = ln.strip()
+        is_fence = stripped.startswith("```") or stripped.startswith("~~~")
+        if not in_fence and is_fence:
+            in_fence = True
+            fence_marker = stripped[:3]
+            i += 1
+            continue
+        if in_fence and is_fence and stripped.startswith(fence_marker):
+            in_fence = False
+            i += 1
+            continue
+        m = (not in_fence) and re.match(r"^(\s{0,3})(#{1,6})\s", ln)
+        if m:
+            level = len(m.group(2))
+            head_text = stripped.lstrip("#").strip()
+            if any(kw in head_text for kw in keywords):
+                # 이 헤딩 다음 줄부터, 같은-or-상위 레벨 헤딩 직전까지 수집
+                j = i + 1
+                buf = []
+                inner_fence = False
+                inner_marker = None
+                while j < n:
+                    jln = lines[j]
+                    jstr = jln.strip()
+                    jfence = jstr.startswith("```") or jstr.startswith("~~~")
+                    if not inner_fence and jfence:
+                        inner_fence = True
+                        inner_marker = jstr[:3]
+                        buf.append(jln)
+                        j += 1
+                        continue
+                    if inner_fence and jfence and jstr.startswith(inner_marker):
+                        inner_fence = False
+                        buf.append(jln)
+                        j += 1
+                        continue
+                    if not inner_fence:
+                        jm = re.match(r"^(\s{0,3})(#{1,6})\s", jln)
+                        if jm and len(jm.group(2)) <= level:
+                            break
+                    buf.append(jln)
+                    j += 1
+                chunks.append("\n".join(buf))
+                i = j
+                continue
+        i += 1
+    if not chunks:
+        return None
+    return "\n".join(chunks)
+
+
+def split_sentences(text):
+    """한국어/영어 혼합 문장 대충 분리. 마침표·물음표·느낌표 기준.
+
+    줄바꿈으로는 쪼개지 않는다(hard-wrap 한 문장을 여러 문장으로 오인 방지).
+    호출 전에 hard-wrap 을 공백으로 합쳐 넘길 것.
+    """
+    parts = re.split(r"(?<=[.!?。！？])\s+", text)
+    return [p.strip() for p in parts if p.strip()]
+
+
+def prose_paragraphs(prose_lines):
+    """코드펜스 밖 줄들을 '산문 문단' 리스트로 만든다.
+
+    - 빈 줄로 문단 구분.
+    - 헤딩·리스트·표(|...)·인용(>)·이미지전용 줄은 산문에서 제외.
+    - 한 문단 안의 hard-wrap 줄들은 공백 하나로 합쳐 한 덩어리로(문장 오분리 방지).
+    """
+    paras = []
+    buf = []
+
+    def is_prose_line(l):
+        s = l.strip()
+        if not s:
+            return False
+        if HEADING_RE.match(l) or LIST_ITEM_RE.match(l):
+            return False
+        if s.startswith(">") or s.startswith("|"):
+            return False
+        if IMG_RE.fullmatch(s):  # 이미지 단독 줄
+            return False
+        return True
+
+    def flush():
+        if buf:
+            paras.append(" ".join(buf))
+
+    for ln in prose_lines:
+        if ln.strip() == "":
+            flush()
+            buf = []
+        elif is_prose_line(ln):
+            buf.append(ln.strip())
+        else:
+            # 비산문 줄(헤딩/리스트 등)은 문단을 끊는다
+            flush()
+            buf = []
+    flush()
+    return [p for p in paras if p.strip()]
+
+
+def validate_readability(data, body):
+    """SYSTEM-SPEC 4-1 (5) readability 프록시. (fail_list, warn_list) 반환."""
+    fail = []
+    warn = []
+
+    sections = section_index(body)
+    prose_lines, fences = parse_fences(body)
+    prose_text = "\n".join(prose_lines)
+
+    # ── 1. 필수 섹션 존재 ────────────────────────────────────────────
+    for label, kws in REQUIRED_SECTIONS:
+        if not has_heading(sections, kws):
+            fail.append(f"필수 섹션 누락: `{label}`")
+    for label, kws in RECOMMENDED_SECTIONS:
+        if not has_heading(sections, kws):
+            warn.append(f"권고 섹션 없음: `{label}`")
+
+    # 증거 섹션 본문 (매체 검증·재현단계 판정에 공통 사용)
+    evidence = find_section(sections, ["확인한 증거"]) or ""
+    ev_prose_lines, ev_fences = parse_fences(evidence)
+    ev_imgs = [m for ln in ev_prose_lines for m in IMG_RE.finditer(ln)]
+
+    # ── 3. 이미지 alt 텍스트 (산문, 즉 코드펜스 밖 이미지만) ─────────
+    #   코드펜스 안의 ![...] 예시는 실제 렌더 이미지가 아니므로 제외.
+    imgs = [m for ln in prose_lines for m in IMG_RE.finditer(ln)]
+    for m in imgs:
+        if not m.group("alt").strip():
+            fail.append(f"이미지 alt 텍스트 없음: ![]({m.group('url').strip()})")
+
+    # ── 2. 매체별 증거 강제 ──────────────────────────────────────────
+    modality = data.get("modality") or []
+    if isinstance(modality, str):
+        modality = [modality]
+    modality = [str(m).strip().lower() for m in modality]
+
+    if "code" in modality:
+        if fences:
+            # 출력/결과 = "확인한 증거" 섹션 안에 코드펜스(출력블록)가 있거나
+            # 결과로 보이는 산문 텍스트가 있어야. 섹션이 비면 FAIL.
+            # 단, placeholder(아직 출력 안 채움)는 출력으로 치지 않는다 →
+            # placeholder 뿐이면 출력 없음 = 발행 불가(FAIL).
+            # 증거는 '확인한 증거' 의 하위 ### 섹션(코드1/코드2 등)까지 포함해 본다.
+            # 출력 슬롯 = 소스 코드펜스 다음의 인용블록('> ...'). 미작성이면
+            # placeholder('> ⚠️ 직접 돌린 출력 채우기...')만 들어 있다.
+            # 출력 있음 신호 = 코드펜스 '밖'의 인용블록(>) 줄 중 placeholder 가
+            # 아닌 줄이 하나라도 있는 것. (소스 코드펜스·인트로 서술은 출력 아님)
+            ev_full = section_with_children(body, ["확인한 증거"]) or ""
+            ev_full_prose, _ = parse_fences(ev_full)
+            real_output = [l for l in ev_full_prose
+                           if l.strip().startswith(">")
+                           and l.strip().lstrip(">").strip()
+                           and PLACEHOLDER_MARK not in l]
+            ev_has_output = bool(real_output)
+            if not has_heading(sections, ["확인한 증거"]) or not ev_has_output:
+                fail.append(
+                    "modality=code: 코드펜스는 있는데 `## 확인한 증거`에 "
+                    "실행 출력/결과가 없음(placeholder는 출력으로 보지 않음)")
+        else:
+            # 코드펜스가 아예 없으면 code 매체로 볼 증거 자체가 없음
+            fail.append("modality=code: 본문에 코드펜스(```)가 없음")
+
+    if "visual" in modality:
+        has_img = bool(imgs)
+        # 재현 단계 = 증거 섹션 안에 리스트, 또는 이미지 외 설명 줄이 2줄 이상.
+        ev_nonimg = [l for l in ev_prose_lines
+                     if l.strip() and not IMG_RE.search(l)]
+        has_steps = (any(LIST_ITEM_RE.match(l) for l in ev_prose_lines)
+                     or len(ev_nonimg) >= 2)
+        if not has_img:
+            fail.append("modality=visual: 이미지 참조(![...](...))가 없음")
+        if not has_heading(sections, ["확인한 증거"]) or not has_steps:
+            fail.append(
+                "modality=visual: `## 확인한 증거`에 재현 단계(리스트/설정값 텍스트)가 없음")
+
+    if "video" in modality:
+        # 출처 URL 은 본문 어디든(인트로 등 허용). 재현/변형 결과는 "확인한 증거"
+        # 섹션 안의 코드펜스 또는 이미지여야(다른 섹션의 무관한 이미지로 통과 방지).
+        has_url = bool(URL_RE.search(body))
+        has_result = bool(ev_fences) or bool(ev_imgs)
+        if not has_url:
+            fail.append("modality=video: 출처 URL(http...)이 본문에 없음")
+        if not has_result:
+            fail.append(
+                "modality=video: `## 확인한 증거`에 재현/변형 결과"
+                "(코드펜스 또는 이미지)가 없음")
+
+    # ── 4. 상투어 과다 (WARN) — 산문(코드펜스 밖)만 ──────────────────
+    for cliche in CLICHES:
+        n = prose_text.count(cliche)
+        if n >= CLICHE_LIMIT:
+            warn.append(f"상투어 '{cliche}' {n}회 (권장 {CLICHE_LIMIT}회 미만)")
+
+    # ── 5. 문장 120자 / 문단 5문장 초과 (WARN) — 산문 문단만 ─────────
+    paras = prose_paragraphs(prose_lines)
+    long_sentences = 0
+    long_paras = 0
+    for para in paras:
+        sents = split_sentences(para)
+        if len(sents) > MAX_PARA_SENTENCES:
+            long_paras += 1
+        for sent in sents:
+            if len(sent) > MAX_SENTENCE_LEN:
+                long_sentences += 1
+    if long_sentences:
+        warn.append(f"한 문장 {MAX_SENTENCE_LEN}자 초과 {long_sentences}곳")
+    if long_paras:
+        warn.append(f"한 문단 {MAX_PARA_SENTENCES}문장 초과 {long_paras}곳")
+
+    return fail, warn
+
+
 def validate_post(path, contexts, categories):
     rel = os.path.relpath(path, ROOT).replace("\\", "/")
     local = []
+    warn = []
 
     # 위치 규칙: content/post/<폴더>/index.md
     if not rel.startswith("content/post/") or not rel.endswith("/index.md"):
@@ -102,10 +468,15 @@ def validate_post(path, contexts, categories):
     data, raw = split_front_matter(text)
     if data is None:
         local.append("front matter(--- 블록)가 없음")
-        return local, None
+        return local, warn, None
     if isinstance(data, str) and data.startswith("YAML_ERROR:"):
         local.append("front matter YAML 파싱 실패: " + data[len("YAML_ERROR:"):])
-        return local, None
+        return local, warn, None
+
+    # draft 글은 검증 대상에서 제외(Hugo 관례: draft 는 사이트·CI 에서 빠짐).
+    # 통과로 카운트하지 않고 'skip' 으로 알린다.
+    if data.get("draft") is True:
+        return local, warn, "SKIP"
 
     for k in REQUIRED:
         if k not in data or data[k] in (None, "", []):
@@ -164,7 +535,22 @@ def validate_post(path, contexts, categories):
         if not date_ok(data["date"]):
             local.append(f"date 는 실제 존재하는 YYYY-MM-DD 여야 함: {data['date']}")
 
-    return local, data
+    # modality(매체) — 있으면 허용값만 (없으면 readability 매체검증은 건너뜀)
+    modality = data.get("modality")
+    if modality not in (None, "", []):
+        mvals = modality if isinstance(modality, list) else [modality]
+        for mv in mvals:
+            if str(mv).strip().lower() not in MODALITIES:
+                local.append(
+                    f"modality '{mv}' 허용 안 됨 (허용: {sorted(MODALITIES)})")
+
+    # ── readability(매체별) 검증 (SYSTEM-SPEC 4-1 (5)) ──
+    body = split_body(text)
+    r_fail, r_warn = validate_readability(data, body)
+    local.extend(r_fail)
+    warn.extend(r_warn)
+
+    return local, warn, data
 
 
 def main():
@@ -183,12 +569,18 @@ def main():
     dedup = {}
     slugs = {}
     checked = 0
+    skipped = []
     for path in sorted(md_files):
         rel = os.path.relpath(path, ROOT).replace("\\", "/")
-        local, data = validate_post(path, contexts, categories)
+        local, warn, data = validate_post(path, contexts, categories)
+        if data == "SKIP":
+            skipped.append(rel)
+            continue
         checked += 1
         if local:
             errors.append((rel, local))
+        if warn:
+            warnings.append((rel, warn))
         if data and data.get("canonical_topic") and data.get("context"):
             key = (str(data["canonical_topic"]), str(data["context"]))
             dedup.setdefault(key, []).append(rel)
@@ -211,6 +603,17 @@ def main():
                  "  → URL(/p/{slug}/) 충돌. slug는 글마다 고유해야 함"]))
 
     print(f"검사한 글: {checked}개")
+    if skipped:
+        print(f"건너뛴 글(draft): {len(skipped)}개 — " + ", ".join(skipped))
+
+    # WARN — 빌드는 막지 않음(참고용). FAIL 과 분리해 항상 먼저 출력.
+    if warnings:
+        print(f"\n[WARN] 경고 {sum(len(w[1]) for w in warnings)}건 (빌드 차단 안 함)\n")
+        for where, msgs in warnings:
+            print(f"  [{where}]")
+            for m in msgs:
+                print(f"     - {m}")
+
     if errors:
         print(f"\n[FAIL] 검증 실패 — 오류 {sum(len(e[1]) for e in errors)}건\n")
         for where, msgs in errors:

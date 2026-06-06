@@ -1,7 +1,19 @@
 # ▶ 다음 세션 이어서 할 일 (인수인계)
 
-> 갱신: 2026-06-06. **검증 게이트 + 자동발행 시스템**을 설계 확정하고 문서화까지 마침. 다음 = 실제 구현.
+> 갱신: 2026-06-06 (3차 세션). **콘텐츠 모델 v3 + 노션 DB·발행규칙 페이지 + 발행 스크립트/워크플로/검증기 + 포인터 글 재작성까지 완료.** 코드 전부 커밋·푸시됨.
 > 블로그는 라이브: https://banchan723.github.io (Hugo 커스텀 테마). 레포: github.com/Banchan723/Banchan723.github.io (퍼블릭).
+
+---
+
+## ▶▶ "이어서 가자" 하면 = 지금 여기부터
+
+빌드는 거의 끝. **남은 건 사용자 셋업(토큰·시크릿) + end-to-end 테스트뿐.** 순서:
+
+1. **사용자가 해야 막힘 (아래 5절)**: 노션 Integration 토큰 발급 → "학습 기록" DB를 그 통합에 공유 → GitHub Secrets에 `NOTION_TOKEN`,`NOTION_DB_ID`(=`77557a111e934f4cbfb363b0e9746894`) 등록. 모바일 Claude 앱에 노션 커넥터 연결.
+2. 셋업되면 **작은 글감 1개로 end-to-end 테스트** (4절 7번): 노션에 행 추가→공부정리→채점통과→블로그본문→상태 발행준비 → Actions 수동 실행(workflow_dispatch) → 발행완료·URL 확인.
+3. **포인터 글 출력 채우기**: `content/post/pointer-cpp/index.md`는 지금 `draft: true`(출력 placeholder뿐이라 발행 불가·라이브 제외 상태). 사용자가 g++로 코드 2~3개 직접 돌려 `⚠️ 직접 돌린 출력 채우기` 자리 채우고 draft 제거하면 발행됨. (이 환경엔 컴파일러 없어서 못 채움.)
+
+> ⚠️ 현재 cron(publish-from-notion.yml)은 매일 돌지만 토큰 없으면 `[SKIP]`로 조용히 통과(no-op) — 실패 안 남. 토큰 넣는 순간부터 실제 발행 시작.
 
 ---
 
@@ -33,30 +45,38 @@
 - **COWORK-PUBLISH.md** — 대체됨 배너.
 - ⚠️ **노션엔 아직 아무것도 안 만듦.** 코드(스크립트·워크플로)도 아직 안 만듦.
 
-## 4. 남은 빌드 단계 (다음 세션, 순서대로)
+## 3b. 2026-06-06 (2차 세션) 추가로 한 일 ✅
 
-> 페어 미세스텝 아님 — 차분히 구현. 코드 수정 후 Codex 교차검증(codex-gate) 필수.
+- **콘텐츠 모델 v3 일반화** (Codex 교차검증 + 사용자 승인). 매체별 글 분리 ❌ → **공통 골격 1개 + 증거블록(매체=노션 필드)**. C++/블렌더/언리얼/유튜브 다 커버.
+  - SYSTEM-SPEC 4-1 전면 개정: 매체(code/visual/video) 개념, 새 본문 골격(확인한 증거 통합 + "다른 예시에 적용해보기" 추가), 매체별 CI 강제 규칙, 스크린샷 조작·영상 베끼기 방어.
+  - 확정값: 구조=공통골격+증거블록 / 스크린샷=중간(스샷+재현단계+설정값, 단독불가) / 영상=재현·변형 결과물 필수.
+- **노션 생성 완료** (Notion MCP):
+  - 부모 페이지 "학습 블로그" = `377fe331-8817-81f0-8c59-dde33a38968c`
+  - **"학습 기록" DB** = `https://app.notion.com/p/77557a111e934f4cbfb363b0e9746894`
+    - **NOTION_DB_ID(깃헙 시크릿용)** = `77557a111e934f4cbfb363b0e9746894`
+    - data source(collection) = `3041c1b9-b0b3-4104-8e4c-ee6e3d8a703c`
+    - 스키마: 제목·canonical_topic·context·**매체(multi)**·**영상출처**·태그(multi)·난이도·slug·description·상태·처리방식·발행일·발행커밋·발행URL·통과근거·오류요약. 전부 NOTION-DB.md v2 + 매체 반영.
+## 3c. 2026-06-06 (3차 세션) 한 일 ✅ — 코드 전부 커밋·푸시됨
 
-1. **노션 "학습 기록" DB 생성** (Notion MCP `notion-create-database`). NOTION-DB.md 스키마대로. 부모 페이지 = 사용자에게 어디 둘지 확인(현재 노션엔 TwinProject 페이지들만 존재).
-2. **노션 "블로그 발행 규칙" 페이지 생성** — taxonomy(data/taxonomy.yaml 복제)·front matter 스키마·4-1 글 구조·템플릿. Claude 앱이 글 쓸 때 매번 읽을 단일 규칙판.
-3. **`scripts/notion_publish.py` 작성** (CI에서 실행):
-   - Notion REST API로 상태=`발행준비` 행 폴링 → 락(`처리중`).
-   - 페이지 본문에서 `BLOG_MD_BEGIN`/`BLOG_MD_END` 사이 코드블록 **그대로 추출**(변환 X). 100블록 pagination·2000자 rich_text 이어붙이기 처리.
-   - DB 속성에서 front matter 조립(제목 따옴표, context→categories 매핑, 난이도→level).
-   - 이미지: v1은 텍스트 전용(이미지 있으면 `발행실패`로 빼고 집에서). (이미지 자동 다운로드는 후순위 TODO.)
-   - 처리방식=`기존글추가`면 기존 slug 파일에 `## 추가 학습 (날짜)` append, 아니면 신규 파일.
-   - `content/post/{slug}/index.md` 작성 → 멱등(이미 같으면 skip).
-   - 성공: 상태=`발행완료` + 발행일/커밋/URL 기록. 실패: 상태=`발행실패` + 오류요약(본문 자동수정 금지).
-4. **`.github/workflows/publish-from-notion.yml` 작성**: `schedule`(하루 1번, Asia/Seoul 고려 cron) + `workflow_dispatch`. `permissions: contents: write`. 단계: checkout → setup python → pip install requests pyyaml → notion_publish.py → validate_posts.py → 변경 있으면 commit+push(=hugo.yml 트리거). 시크릿 `NOTION_TOKEN`,`NOTION_DB_ID`.
-5. **`scripts/validate_posts.py`에 readability 체크 추가** — SYSTEM-SPEC 4-1 (5): 필수 섹션 존재, 코드블록 있는데 `## 결과 / 동작` 비면 실패(cpp 등), 상투어·문장길이 경고.
-6. **포인터 글 새 구조로 재작성** — 4-1 (3) 구조(이 글에서 이해할 것/읽기 전 배경/.../확인 질문). **레퍼런스 예시**. 단 `## 결과 / 동작`은 사용자가 직접 코드 돌려 진짜 출력 채워야 완성(현재 비어 있어 새 규칙상 발행 불가).
-7. **전체 한 바퀴 테스트** — 노션 토큰·시크릿 세팅(아래 사용자 작업) 후, 작은 글감 1개로 공부→채점→발행 end-to-end.
-8. 다 되면 **커밋·푸시**.
+- **노션 "블로그 발행 규칙" 페이지 생성** = `377fe331-8817-811f-aef2-c49a41febdca` (학습 블로그 밑). Claude 앱이 글 쓸 때 읽는 단일 규칙판 + 행 본문 템플릿 포함.
+- **`scripts/notion_publish.py` 작성** (667줄). Codex 적대적 리뷰 8건 전부 반영(마커 미닫힘 실패처리·append 멱등 섹션경계·기존글추가 메타요구 버그·YAML 제어문자 이스케이프·락 re-GET 방어·위험콘텐츠 엔티티 변형·에러로그 축소). 토큰 없으면 `[SKIP]` exit 0(no-op).
+- **`.github/workflows/publish-from-notion.yml` 작성** — cron 07:00 KST + workflow_dispatch, concurrency 직렬화, contents:write, validate 후 변경시 commit+push.
+- **`scripts/validate_posts.py` 매체별 readability 강화** — 필수 섹션·매체별 증거강제(code=출력/visual=이미지+재현/video=출처+재현)·이미지 alt·상투어/길이 경고. **draft 글 skip** + **placeholder 출력은 출력없음=FAIL**(엄격 결정). Codex 교차검증 완료.
+- **포인터 글 v3 재작성** + `draft: true`(출력 placeholder뿐이라 미완성→라이브 제외). 레퍼런스 예시.
+- 검증: py_compile OK, validate_posts.py exit 0(포인터 draft skip).
+
+## 4. 남은 단계 (= "이어서 가자" 시작점, 위 ▶▶ 와 동일)
+
+> 빌드 거의 끝. 남은 건 사용자 셋업 + e2e 테스트.
+
+1~6. ✅ 완료 (3b·3c 참고).
+7. **end-to-end 테스트** — 사용자 셋업(5절) 후 작은 글감 1개로 공부→채점→발행 한 바퀴. workflow_dispatch로 수동 1회 먼저.
+8. **포인터 글 출력 채우고 draft 제거** — 사용자가 g++로 실행해 실제 출력 붙이면 발행됨.
 
 ## 5. 사용자만 할 수 있는 일 (블로킹 — 같이 해야 함)
 
 - **[#1] 노션 Internal Integration 발급** — notion.so/my-integrations → New integration → 토큰 복사. (이번 세션에 안내했으나 미완.)
-- **[#2] 위 DB 생성 후, 그 DB를 #1 통합에 공유** (DB 우상단 ··· → Connections → 통합 추가).
+- **[#2] "학습 기록" DB(이미 생성됨)를 #1 통합에 공유** — 노션에서 학습 블로그 ▸ 학습 기록 DB 열고 우상단 ··· → Connections → 통합 추가.
 - **[#3] GitHub repo Secrets 등록** — Settings → Secrets and variables → Actions: `NOTION_TOKEN`(=#1 토큰), `NOTION_DB_ID`(=생성된 DB ID, 내가 알려줌).
 - **[#4] GitHub Settings → Actions → Workflow permissions** = Read and write (또는 워크플로 permissions로 지정 — 본 설계는 후자라 불필요할 수도).
 - **[#5] 모바일/태블릿 Claude 앱에 Notion 커넥터 연결** 확인.
