@@ -21,7 +21,8 @@
 {{- /* 파일명: 코드펜스 정보스트링 title 우선 → 언어별 기본명 → 언어 */ -}}
 {{- $fname := or .Attributes.title (index $names $lang) $lang -}}
 {{- /* 줄번호(거터)는 config markup.highlight(lineNos·lineNumbersInTable)를 상속 */ -}}
-{{- $highlighted := transform.Highlight (trim .Inner "\n") $lang -}}
+{{- /* 끝쪽 trailing 개행만 제거(앞쪽 의도된 빈 줄은 보존 → 줄번호 정합) */ -}}
+{{- $highlighted := transform.Highlight (strings.TrimRight "\n" .Inner) $lang -}}
 <div class="b-code">
   <div class="cbar">
     <span class="fn">{{ $fname }}</span>

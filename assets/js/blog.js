@@ -334,7 +334,8 @@
           || block.querySelector("pre"));
         if (!pre) return;
 
-        var text = pre.innerText;
+        // textContent (not innerText) for source-fidelity; drop trailing newline.
+        var text = pre.textContent.replace(/\n+$/, "");
 
         function flash() {
           var prev = btn.textContent;

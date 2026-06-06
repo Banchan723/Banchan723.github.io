@@ -36,6 +36,7 @@ claude.ai Design 시안(`design_handoff_banchan_blog`, 터미널/IDE 감성)을 
 - **신호등 점 제거** → cbar에 파일명 + copy만. 파일명은 코드펜스 `title="..."` 정보스트링 우선(없으면 언어별 기본명).
 - **copy JS 수정**: lineNumbersInTable이면 코드가 마지막 칼럼 `<pre>`라, `.lntable td.lntd:last-child pre`를 복사(줄번호 제외).
 - 코드블록은 라이트 모드에서도 다크 패널 유지(밝은 글자 상속).
+- Codex 리뷰 반영: 끝 개행만 제거(`strings.TrimRight`, 앞 빈 줄 보존), 코드 칼럼만 가로 스크롤(긴 줄이 페이지 안 밀게 `max-width:0;width:100%`), 복사는 `textContent`+끝개행 제거.
 
 ---
 

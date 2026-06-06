@@ -244,8 +244,10 @@ body.light .b-cover .glyph { color: rgba(0,0,0,.18); }
 .b-code .lntable td { padding: 0; border: 0; vertical-align: top; }
 .b-code .lntable td.lntd:first-child { width: 1%; white-space: nowrap;
   background: color-mix(in oklab, #161d27 85%, #000); border-right: 1px solid #222b37; }
-.b-code .lntd:first-child pre { padding: 16px 14px; }
-.b-code .lntd:last-child pre { padding: 16px 18px; }
+/* 코드 칼럼: 긴 줄이 와도 페이지를 밀지 않고 칼럼 안에서만 가로 스크롤 */
+.b-code .lntable td.lntd:last-child { width: 100%; max-width: 0; }
+.b-code .lntd:first-child pre { padding: 16px 14px; overflow: hidden; }
+.b-code .lntd:last-child pre { padding: 16px 18px; overflow-x: auto; }
 /* comments */
 .b-code .c, .b-code .c1, .b-code .cm, .b-code .cs, .b-code .cp, .b-code .cpf { color: #7f8da3; font-style: italic; }
 /* keywords */
