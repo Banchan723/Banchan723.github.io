@@ -8,6 +8,12 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # 자동발행(Publish from Notion)이 GITHUB_TOKEN으로 커밋하면 push 이벤트가
+  # 다른 워크플로를 트리거하지 않는다(무한루프 방지). 그래서 그 워크플로가
+  # 끝나면 여기서 이어받아 빌드·배포한다. (변경 없으면 같은 내용 재배포 — 무해)
+  workflow_run:
+    workflows: ["Publish from Notion"]
+    types: [completed]
 
 permissions:
   contents: read
@@ -25,6 +31,12 @@ defaults:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # workflow_run으로 불려온 경우엔 발행이 main에서 성공했을 때만 배포한다
+    # (실패/취소 발행에 헛배포 방지). 다른 트리거(push·수동)는 그대로 실행.
+    if: >
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
     env:
       HUGO_VERSION: 0.162.1
     steps:
