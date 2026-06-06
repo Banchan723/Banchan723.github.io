@@ -730,6 +730,36 @@ def set_failed(token, page_id, reason):
         print(f"[ERROR] 발행실패 상태 기록도 실패(page={page_id}): {e}")
 
 
+def validate_written_post(slug):
+    """방금 쓴 글을 '발행완료' 마킹 전에 검증한다 (규칙 8: 형식 불량을 발행완료로
+    만들지 않는다). validate_posts.validate_post 를 재사용. 반환: (ok, reason)."""
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import validate_posts as vp
+        contexts, categories = vp.load_taxonomy()
+        local, _warn, data = vp.validate_post(post_path(slug), contexts, categories)
+        if data == "SKIP":
+            return False, "draft 상태라 발행 불가 (draft 제거 필요)"
+        if local:
+            return False, "; ".join(local)
+        return True, ""
+    except Exception as e:
+        return False, f"검증 실행 오류: {e}"
+
+
+def remove_post(slug):
+    """검증 실패한 신규 글 파일/번들을 지운다 (커밋되지 않게)."""
+    path = post_path(slug)
+    try:
+        if os.path.exists(path):
+            os.remove(path)
+        d = os.path.dirname(path)
+        if os.path.isdir(d) and not os.listdir(d):
+            os.rmdir(d)
+    except OSError as e:
+        print(f"[WARN] 검증 실패 글 제거 중 오류({slug}): {e}")
+
+
 # ----------------------------------------------------------------------------
 # 한 행 처리
 # ----------------------------------------------------------------------------
@@ -790,8 +820,16 @@ def process_page(token, page, ctx_to_cat):
     else:
         result = write_new_post(slug, front_matter, body_md)
 
-    # 발행커밋은 워크플로가 커밋 후 채우는 게 정확하지만,
-    # 스크립트 단계에선 placeholder 를 남긴다 (규칙 8: 실제 마감은 커밋·URL).
+    # 발행완료 마킹 전 검증 (규칙 8 — 형식 불량을 발행완료로 만들지 않는다).
+    # 실패면 발행실패로: 신규 글은 파일을 제거해 커밋되지 않게 한다.
+    ok, reason = validate_written_post(slug)
+    if not ok:
+        if not is_append:
+            remove_post(slug)
+        raise PublishError(f"작성된 글 검증 실패(발행 차단): {reason}")
+
+    # 발행커밋 SHA 는 커밋이 다음 워크플로 스텝에서 일어나므로 여기선 placeholder.
+    # (정확한 발행커밋 기록은 커밋 후 finalize 단계가 채우는 게 맞음 — TODO.)
     commit_placeholder = os.environ.get("GITHUB_SHA", "")[:7] or "pending"
     set_done(token, page_id, slug, pub_date, commit_placeholder)
 
