@@ -814,17 +814,26 @@ def process_page(token, page, ctx_to_cat):
     if danger:
         raise PublishError(danger)
 
-    # 파일 작성
+    # 파일 작성 (append 는 검증 실패 시 원복하려고 원본을 백업)
+    append_backup = None
     if is_append:
+        _p = post_path(slug)
+        if os.path.exists(_p):
+            with open(_p, "r", encoding="utf-8") as f:
+                append_backup = f.read()
         result = append_to_post(slug, body_md, pub_date)
     else:
         result = write_new_post(slug, front_matter, body_md)
 
     # 발행완료 마킹 전 검증 (규칙 8 — 형식 불량을 발행완료로 만들지 않는다).
-    # 실패면 발행실패로: 신규 글은 파일을 제거해 커밋되지 않게 한다.
+    # 실패면 발행실패로: 신규는 파일 제거, append 는 원본 복원 (working tree 오염·중복 append 방지).
     ok, reason = validate_written_post(slug)
     if not ok:
-        if not is_append:
+        if is_append:
+            if append_backup is not None:
+                with open(post_path(slug), "w", encoding="utf-8") as f:
+                    f.write(append_backup)
+        else:
             remove_post(slug)
         raise PublishError(f"작성된 글 검증 실패(발행 차단): {reason}")
 
