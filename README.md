@@ -51,11 +51,14 @@ Claude 구독 빼면 전부 무료: GitHub Actions·Pages(퍼블릭 레포 무�
 2. **발행 확인** — 하루 1번 자동. 급하면 GitHub Actions → Publish from Notion → Run workflow.
 3. 로컬 점검(선택): `& "C:\Users\chanyoung\AppData\Local\Microsoft\WindowsApps\python3.exe" scripts\validate_posts.py` / 미리보기 `C:\hugo2\hugo.exe server`
 
-## 현재 상태 (2026-06-07)
+## 현재 상태 (2026-06-07 — 가동 중)
 
-- ✅ 셋업 완료: 노션 토큰·GitHub Secrets·커넥터·자동발행 스모크 테스트 통과.
-- ✅ 배포 연결 수정: 자동발행 커밋이 hugo 배포를 트리거하도록 `hugo.yml`에 `workflow_run` 추가.
-- ⏳ 남은 일: 실제 글 1개로 end-to-end(공부→채점→발행) 검증. `content/post/pointer-cpp/`는 출력 placeholder라 `draft: true` — 사용자가 실제 출력 채우면 발행.
+- ✅ 셋업 완료 + 자동발행 스모크 테스트 통과 (노션 토큰·GitHub Secrets·커넥터).
+- ✅ **end-to-end 실증 완료** — 1호 글 라이브: https://banchan723.github.io/p/cpp-pointer/ (공부→채점→노션→자동발행→배포 한 바퀴 진짜 작동 확인).
+- ✅ 배포 연결 수정: 자동발행 커밋이 hugo 배포를 트리거하도록 `hugo.yml`에 `workflow_run` 추가 (GITHUB_TOKEN 푸시가 push 트리거 못 하는 문제).
+- ✅ 게이트 개정: '막힌 점' 섹션 필수→**선택**. 이미 아는 개념도 강한 증거(직접 돌린 출력+변형문제 통과+자기말 설명)면 발행 (SYSTEM-SPEC 4-1(3)/4-2).
+- ✅ 발행 파이프 버그 3건 수정: 본문 추출을 노션 블록→마크다운 변환으로 교체(코드펜스 충돌 해결) / 발행완료 마킹을 검증 통과 후로(규칙8) / append 검증 실패 시 원본 복원.
+- **다음**: 태블릿에서 공부하고 "블로그로 남기자" 하면 글이 쌓인다. 미세 TODO는 SYSTEM-SPEC 3절(발행커밋 SHA finalize).
 
 ## 그만둘 신호 (정직하게)
 
