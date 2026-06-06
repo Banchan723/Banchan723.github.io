@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="{{ or site.Language.LanguageCode site.LanguageCode "ko" }}" data-lang="{{ site.Language.Lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ if .IsHome }}{{ site.Title }}{{ else }}{{ .Title }} · {{ site.Title }}{{ end }}</title>
+  {{ with or .Description .Summary site.Params.profile.bio }}
+  <meta name="description" content="{{ . | plainify | truncate 160 }}">
+  {{ end }}
+  <link rel="canonical" href="{{ .Permalink }}">
+  {{ with .OutputFormats.Get "rss" }}
+  <link rel="alternate" type="application/rss+xml" title="{{ site.Title }}" href="{{ .Permalink }}">
+  {{ end }}
+
+  {{/* ── fonts ─────────────────────────────────────────── */}}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Nanum+Gothic+Coding:wght@400;700&display=swap">
+
+  {{/* ── styles (terminal tokens first, then blog) ─────── */}}
+  {{ with resources.Get "css/terminal.css" }}
+    {{ $css := . | fingerprint }}
+    <link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}">
+  {{ end }}
+  {{ with resources.Get "css/blog.css" }}
+    {{ $css := . | fingerprint }}
+    <link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}">
+  {{ end }}
+
+  {{/* ── interactions (vanilla, no deps) ───────────────── */}}
+  {{ with resources.Get "js/blog.js" }}
+    {{ $js := . | fingerprint }}
+    <script src="{{ $js.RelPermalink }}" integrity="{{ $js.Data.Integrity }}" defer></script>
+  {{ end }}
+</head>
+<body>
+  {{/* FOUC guard: apply stored light theme before paint */}}
+  <script>if(localStorage.getItem('bc-theme')==='light')document.body.classList.add('light');</script>
+
+  <div class="b-app">
+    {{ partial "header.html" . }}
+    <div class="b-body">
+      {{ partial "sidebar.html" . }}
+      <main class="b-main">
+        {{ block "main" . }}{{ end }}
+      </main>
+    </div>
+  </div>
+</body>
+</html>

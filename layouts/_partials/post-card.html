@@ -1,0 +1,45 @@
+{{- /* Renders one .b-post card. Context (.) = a regular post Page. */ -}}
+{{- $catData := site.Data.taxonomy.categories -}}
+{{- $cats := .Params.categories -}}
+{{- $primary := "" -}}
+{{- with $cats }}{{ $primary = index . 0 }}{{ end -}}
+{{- $color := "#5a6678" -}}
+{{- $context := "" -}}
+{{- with index $catData $primary -}}
+  {{- with .color }}{{ $color = . }}{{ end -}}
+  {{- with .context }}{{ $context = . }}{{ end -}}
+{{- end -}}
+{{- $lang := or .Params.lang $context "md" -}}
+{{- $en := .Params.en -}}
+{{- $pin := cond (eq .Params.pin true) "1" "0" -}}
+{{- $tags := .Params.tags -}}
+{{- $tagStr := delimit (default slice $tags) " " -}}
+{{- $haystack := lower (printf "%s %s %s %s" .Title (or $en "") (or .Params.description "") $tagStr) -}}
+<article class="b-post"
+  data-cat="{{ $primary }}"
+  data-tags="{{ $tagStr }}"
+  data-search="{{ $haystack }}"
+  data-date="{{ .Date.Format "2006-01-02" }}"
+  data-read="{{ .ReadingTime }}"
+  data-pin="{{ $pin }}">
+  <a class="b-cover" href="{{ .Permalink }}"
+    style="background:linear-gradient(140deg, color-mix(in oklab, {{ $color }} 48%, var(--bg-0)), var(--bg-2))">
+    <span class="glyph">&lt;/&gt;</span>
+    <span class="lang">{{ $lang }}</span>
+  </a>
+  <div>
+    <div class="b-pmeta">
+      <span class="cat" style="color:{{ $color }}"><span class="fd" style="width:7px;height:7px;border-radius:2px;background:{{ $color }};display:inline-block"></span>{{ $primary }}</span>
+      <span>·</span><span>{{ .Date.Format "Jan 2, 2006" }}</span>
+      <span>·</span><span>{{ .ReadingTime }} min read</span>
+      {{ if eq .Params.pin true }}<span class="b-pin">★ pinned</span>{{ end }}
+    </div>
+    <h3 class="b-ph"><a href="{{ .Permalink }}">{{ .Title }}</a>{{ with $en }} <span class="en">— {{ . }}</span>{{ end }}</h3>
+    {{ with .Params.description }}<p class="b-pd">{{ . }}</p>{{ end }}
+    {{ with $tags }}
+    <div class="b-ptags">
+      {{ range . }}{{ $tp := site.GetPage (printf "/tags/%s" .) }}<a class="b-ptag" href="{{ with $tp }}{{ .Permalink }}{{ else }}{{ "/" | relURL }}{{ end }}">#{{ . }}</a>{{ end }}
+    </div>
+    {{ end }}
+  </div>
+</article>

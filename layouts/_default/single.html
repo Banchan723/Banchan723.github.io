@@ -1,0 +1,61 @@
+{{ define "main" }}
+{{- $catData := site.Data.taxonomy.categories -}}
+{{- $cats := .Params.categories -}}
+{{- $primary := "" -}}
+{{- with $cats }}{{ $primary = index . 0 }}{{ end -}}
+{{- $color := "#5a6678" -}}
+{{- with index $catData $primary }}{{ with .color }}{{ $color = . }}{{ end }}{{ end -}}
+{{- $catPage := "" -}}
+{{- with $primary }}{{ $catPage = site.GetPage (printf "/categories/%s" .) }}{{ end -}}
+{{- $en := .Params.en -}}
+{{- $older := .NextInSection -}}{{/* older = earlier date */}}
+{{- $newer := .PrevInSection -}}{{/* newer = later date */}}
+<div class="b-wrap">
+
+  <div class="b-crumb">
+    <a href="{{ "/" | relURL }}">~</a><span class="sep">/</span>
+    <a href="{{ "/" | relURL }}">posts</a>
+    {{ with $primary }}<span class="sep">/</span><a href="{{ with $catPage }}{{ .Permalink }}{{ else }}{{ "/" | relURL }}{{ end }}">{{ . }}</a>{{ end }}
+    <span class="sep">/</span><span class="cur">{{ or .Params.slug .File.ContentBaseName }}.md</span>
+  </div>
+
+  <div class="b-art-grid">
+    <article class="b-art">
+      <a class="b-back" href="{{ "/" | relURL }}">‹ cd ../</a>
+      <div class="a-meta">
+        <span class="cat" style="color:{{ $color }}"><span class="fd" style="width:8px;height:8px;border-radius:2px;background:{{ $color }};display:inline-block"></span>{{ $primary }}</span>
+        <span>·</span><span>{{ .Date.Format "Jan 2, 2006" }}</span>
+        <span>·</span><span>{{ .ReadingTime }} min read</span>
+        {{ with .Params.level }}<span>·</span><span style="color:var(--amber)">{{ . }}</span>{{ end }}
+      </div>
+      <h1>{{ .Title }}</h1>
+      {{ with $en }}<div class="a-en">— {{ . }}</div>{{ end }}
+
+      <div class="body">
+        {{ .Content }}
+      </div>
+
+      {{ with .Params.tags }}
+      <div class="b-ptags" style="margin-top:28px">
+        {{ range . }}{{ $tp := site.GetPage (printf "/tags/%s" .) }}<a class="b-ptag" href="{{ with $tp }}{{ .Permalink }}{{ else }}{{ "/" | relURL }}{{ end }}">#{{ . }}</a>{{ end }}
+      </div>
+      {{ end }}
+
+      <div class="b-pn">
+        {{ if $older }}
+        <a href="{{ $older.Permalink }}"><div class="dir">‹ 이전 글 (older)</div><div class="tt">{{ $older.Title }}</div></a>
+        {{ else }}<span></span>{{ end }}
+        {{ if $newer }}
+        <a class="next" href="{{ $newer.Permalink }}"><div class="dir">다음 글 (newer) ›</div><div class="tt">{{ $newer.Title }}</div></a>
+        {{ else }}<span></span>{{ end }}
+      </div>
+    </article>
+
+    <nav class="b-toc">
+      <div class="tt">▟ on this page</div>
+      {{ .TableOfContents }}
+    </nav>
+  </div>
+
+</div>
+{{ end }}

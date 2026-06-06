@@ -1,0 +1,27 @@
+{{ define "main" }}
+{{- $posts := where site.RegularPages "Section" "post" -}}
+<div class="b-wrap" style="max-width:720px">
+  <div class="b-crumb">
+    <a href="{{ "/" | relURL }}">~</a><span class="sep">/</span>
+    <span class="cur">archives</span>
+  </div>
+
+  <div class="b-lhead" style="margin-bottom:18px">
+    <h1><span class="hash">#</span> {{ .Title }}</h1>
+    <span class="meta">{{ len $posts }} entries</span>
+  </div>
+
+  <div class="b-art">
+    <div class="body">
+      {{ range $posts.GroupByDate "2006" }}
+        <h2>{{ .Key }}</h2>
+        <ul>
+          {{ range .Pages }}
+          <li><a href="{{ .Permalink }}" style="color:var(--accent)">{{ .Title }}</a> <span class="dim" style="font-size:12.5px">— {{ .Date.Format "Jan 2" }}</span></li>
+          {{ end }}
+        </ul>
+      {{ end }}
+    </div>
+  </div>
+</div>
+{{ end }}

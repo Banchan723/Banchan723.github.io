@@ -19,6 +19,7 @@ contexts:
 categories:
   "C++":
     context: cpp
+    color: "#5aa2ff"
     allowed_tags:
       - 포인터
       - 참조
@@ -33,6 +34,7 @@ categories:
 
   "Unreal":
     context: unreal
+    color: "#4dd5d5"
     allowed_tags:
       - 블루프린트
       - 액터
@@ -47,6 +49,7 @@ categories:
 
   "Blender":
     context: blender
+    color: "#ffa65c"
     allowed_tags:
       - 모델링
       - 스컬핑
@@ -59,6 +62,7 @@ categories:
 
   "Tripo 3D":
     context: tripo
+    color: "#b98cff"
     allowed_tags:
       - 생성
       - 정리

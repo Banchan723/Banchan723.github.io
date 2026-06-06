@@ -1,0 +1,5 @@
+{{- $title := .Get "title" | default "깨달은 점 · TIL" -}}
+<div class="b-til">
+  <div class="tl">▟ {{ $title }}</div>
+  <div class="tx">{{ .Inner | markdownify }}</div>
+</div>

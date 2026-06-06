@@ -1,15 +1,29 @@
-# Hugo + Stack 테마 메인 설정
+# Hugo 메인 설정 (자체 커스텀 테마 — layouts/ 직접 사용)
 baseURL                = "https://banchan723.github.io/"
 locale                 = "ko-KR"
 title                  = "독학 노트"
-theme                  = "hugo-theme-stack"
 defaultContentLanguage = "ko"
 hasCJKLanguage         = true   # 한국어 요약·단어수 올바르게
 timeZone               = "Asia/Seoul"
 buildFuture            = true   # 한국시간 글이 UTC 기준 "미래"라 빠지는 문제 방지
 
 [pagination]
-  pagerSize = 10
+  pagerSize = 100   # 단일 페이지 클라이언트 필터 — 모든 글을 한 번에 렌더
+
+# 마크다운 렌더링: Chroma 코드 하이라이팅 + TOC + HTML 통과
+[markup]
+  [markup.highlight]
+    noClasses    = false   # Chroma 클래스 출력 (CSS가 .b-code 안에서 색칠)
+    lineNos      = false
+    codeFences   = true
+    guessSyntax  = true
+    tabWidth     = 2
+  [markup.goldmark.renderer]
+    unsafe = true          # 본문 내 인라인 HTML 통과
+  [markup.tableOfContents]
+    startLevel = 2
+    endLevel   = 3
+    ordered    = false
 
 [permalinks]
   post = "/p/:slug/"

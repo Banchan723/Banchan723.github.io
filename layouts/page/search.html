@@ -1,0 +1,28 @@
+{{ define "main" }}
+{{- $posts := where site.RegularPages "Section" "post" -}}
+<div class="b-wrap">
+  <div class="b-crumb">
+    <a href="{{ "/" | relURL }}">~</a><span class="sep">/</span>
+    <span class="cur">search</span>
+  </div>
+
+  <div class="b-lhead">
+    <h1><span class="hash">#</span> 검색</h1>
+    <span class="meta">{{ len $posts }} / {{ len $posts }} entries</span>
+    <div class="b-sort">
+      <button type="button" class="on" data-sort="new">최신순</button>
+      <button type="button" data-sort="short">짧은글</button>
+    </div>
+  </div>
+
+  <div class="b-filters"></div>
+
+  <div class="b-list">
+    {{ range $posts }}{{ partial "post-card.html" . }}{{ end }}
+  </div>
+  <div class="b-empty" hidden>
+    <div class="big">$ grep: 일치하는 글이 없어요</div>
+    위 검색창(⌘K)에 키워드를 입력하세요.
+  </div>
+</div>
+{{ end }}

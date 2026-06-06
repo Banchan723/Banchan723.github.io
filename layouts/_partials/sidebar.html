@@ -1,0 +1,82 @@
+{{- $profile := site.Params.profile -}}
+{{- $catData := site.Data.taxonomy.categories -}}
+{{- $postCount := len (where site.RegularPages "Section" "post") -}}
+<aside class="b-side">
+
+  {{/* ── profile ─────────────────────────────────────── */}}
+  <a class="b-prof" href="{{ "/" | relURL }}">
+    <div class="av">{{ or $profile.avatar "BC" }}</div>
+    <div>
+      <div class="nm">{{ or $profile.name site.Title }}</div>
+      <div class="rl">{{ $profile.role }}</div>
+    </div>
+  </a>
+
+  {{/* ── nav ─────────────────────────────────────────── */}}
+  <div class="b-grp">
+    <nav class="b-nav">
+      <a href="{{ "/" | relURL }}"{{ if .IsHome }} class="on"{{ end }}>
+        <span class="gl">~</span> Home <span class="ct">{{ $postCount }}</span>
+      </a>
+      <a href="{{ "/archives/" | relURL }}"><span class="gl">≡</span> Archive</a>
+      <a href="{{ "/about/" | relURL }}"><span class="gl">◔</span> About</a>
+      {{ with .OutputFormats.Get "rss" }}
+      <a href="{{ .Permalink }}"><span class="gl">⟿</span> RSS</a>
+      {{ else }}
+      <a href="{{ "/index.xml" | relURL }}"><span class="gl">⟿</span> RSS</a>
+      {{ end }}
+    </nav>
+  </div>
+
+  {{/* ── category tree ───────────────────────────────── */}}
+  {{ with site.Taxonomies.categories }}
+  <div class="b-grp">
+    <div class="lbl">📁 posts / category</div>
+    <div class="b-tree">
+      {{ range $name, $taxonomy := . }}
+        {{- $title := $taxonomy.Page.Title -}}
+        {{- $color := "#5a6678" -}}
+        {{- with index $catData $title }}{{ with .color }}{{ $color = . }}{{ end }}{{ end -}}
+        <a class="row" data-cat="{{ $title }}" href="{{ $taxonomy.Page.Permalink }}">
+          <span class="fd" style="background:{{ $color }}"></span>{{ $title }}
+          <span class="ct">{{ $taxonomy.Count }}</span>
+        </a>
+      {{ end }}
+    </div>
+  </div>
+  {{ end }}
+
+  {{/* ── tag cloud (top 14 by frequency) ─────────────── */}}
+  {{ with site.Taxonomies.tags }}
+  <div class="b-grp">
+    <div class="lbl"># tags</div>
+    <div class="b-tags">
+      {{ range first 14 .ByCount }}
+        <a class="t" data-tag="{{ .Page.Title }}" href="{{ .Page.Permalink }}">{{ .Page.Title }}</a>
+      {{ end }}
+    </div>
+  </div>
+  {{ end }}
+
+  {{/* ── now learning ────────────────────────────────── */}}
+  {{ with site.Params.learning }}
+  <div class="b-grp">
+    <div class="b-learn">
+      <div class="hd"><span class="pulse"></span> 요즘 공부 중 · now learning</div>
+      {{ range . }}
+      <div class="item">
+        <div class="lab"><span>{{ .label }}</span><span class="pc">{{ .pct }}%</span></div>
+        <div class="bar"><i style="width:{{ .pct }}%;background:{{ .color }}"></i></div>
+      </div>
+      {{ end }}
+    </div>
+  </div>
+  {{ end }}
+
+  {{/* ── footer ──────────────────────────────────────── */}}
+  <div class="b-side-foot">
+    {{ with $profile.location }}{{ . }}{{ end }}{{ with $profile.since }} · since {{ . }}{{ end }}<br>
+    혼자 공부한 걸 차곡차곡 기록합니다.
+  </div>
+
+</aside>

@@ -1,0 +1,33 @@
+{{- $lang := or .Type "code" -}}
+{{- $fname := $lang -}}
+{{- $names := dict
+  "cpp" "snippet.cpp"
+  "c++" "snippet.cpp"
+  "c" "snippet.c"
+  "py" "snippet.py"
+  "python" "snippet.py"
+  "rs" "main.rs"
+  "rust" "main.rs"
+  "sql" "query.sql"
+  "css" "style.css"
+  "html" "index.html"
+  "json" "tokens.json"
+  "js" "script.js"
+  "javascript" "script.js"
+  "go" "main.go"
+  "sh" "run.sh"
+  "bash" "run.sh"
+  "md" "note.md"
+-}}
+{{- with index $names $lang }}{{ $fname = . }}{{ end -}}
+{{- $highlighted := transform.Highlight (trim .Inner "\n") $lang -}}
+<div class="b-code">
+  <div class="cbar">
+    <span class="d" style="background:#ff5f57"></span>
+    <span class="d" style="background:#febc2e"></span>
+    <span class="d" style="background:#28c840"></span>
+    <span class="fn">{{ $fname }}</span>
+    <span class="cp" role="button" tabindex="0">copy</span>
+  </div>
+  {{ $highlighted }}
+</div>

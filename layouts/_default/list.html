@@ -1,0 +1,42 @@
+{{ define "main" }}
+{{- /* Term pages (categories/tags) and section pages list post pages. */ -}}
+{{- $posts := where .Pages "Section" "post" -}}
+{{- $allPosts := where site.RegularPages "Section" "post" -}}
+<div class="b-wrap">
+
+  <div class="b-crumb">
+    <a href="{{ "/" | relURL }}">~</a>
+    <span class="sep">/</span>
+    <a href="{{ "/" | relURL }}">posts</a>
+    <span class="sep">/</span>
+    <span class="cur">{{ .Title }}</span>
+  </div>
+
+  <div class="b-lhead">
+    <h1><span class="hash">#</span> {{ .Title }}</h1>
+    <span class="meta">{{ len $posts }} / {{ len $allPosts }} entries</span>
+    <div class="b-sort">
+      <button type="button" class="on" data-sort="new">최신순</button>
+      <button type="button" data-sort="short">짧은글</button>
+    </div>
+  </div>
+
+  <div class="b-filters"></div>
+
+  {{ if $posts }}
+  <div class="b-list">
+    {{ range $posts }}{{ partial "post-card.html" . }}{{ end }}
+  </div>
+  <div class="b-empty" hidden>
+    <div class="big">$ grep: 일치하는 글이 없어요</div>
+    다른 키워드나 카테고리로 찾아보세요.
+  </div>
+  {{ else }}
+  <div class="b-empty">
+    <div class="big">$ 비어 있어요</div>
+    이 목록에는 아직 글이 없습니다.
+  </div>
+  {{ end }}
+
+</div>
+{{ end }}

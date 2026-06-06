@@ -1,0 +1,23 @@
+{{- $profile := site.Params.profile -}}
+<header class="b-head">
+  <a class="b-brand" href="{{ "/" | relURL }}">
+    <div class="mark">&lt;/&gt;</div>
+    <div class="wm">{{ or $profile.name site.Title }}<span class="s">/blog</span></div>
+  </a>
+  <div class="b-search">
+    <span class="ico">⌕</span>
+    <input id="b-q" type="search" autocomplete="off" placeholder="글 검색…  grep posts/">
+    <span class="kbd">⌘K</span>
+  </div>
+  <div class="b-htools">
+    {{ with .OutputFormats.Get "rss" }}
+    <a class="b-icobtn" href="{{ .Permalink }}" title="RSS">⟿</a>
+    {{ else }}
+    <a class="b-icobtn" href="{{ "/index.xml" | relURL }}" title="RSS">⟿</a>
+    {{ end }}
+    {{ with index site.Menus.social 0 }}
+    <a class="b-icobtn" href="{{ .URL }}" title="{{ .Name }}" target="_blank" rel="noopener">⎇</a>
+    {{ end }}
+    <button class="b-icobtn" id="b-theme" type="button" title="테마">☾</button>
+  </div>
+</header>
