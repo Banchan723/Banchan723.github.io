@@ -75,6 +75,11 @@ CLICHE_LIMIT = 3          # 이 횟수 "이상"이면 WARN
 MAX_SENTENCE_LEN = 120    # 한 문장 글자수 초과 → WARN
 MAX_PARA_SENTENCES = 5    # 한 문단 문장수 초과 → WARN
 
+# code 매체 '실행 출력' 판정: 출력 라벨 + 실제 값 (키워드만으론 가짜통과라 라벨문법으로 제한)
+OUTPUT_LABEL_RE = re.compile(
+    r"(직접\s*돌린\s*출력|실행\s*결과|출력|결과|에러|output|result|error)\s*[:：\-]\s*\S",
+    re.IGNORECASE)
+
 IMG_RE = re.compile(r"!\[(?P<alt>[^\]]*)\]\((?P<url>[^)]*)\)")
 URL_RE = re.compile(r"https?://\S+")
 HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s")
@@ -387,17 +392,23 @@ def validate_readability(data, body):
             # 단, placeholder(아직 출력 안 채움)는 출력으로 치지 않는다 →
             # placeholder 뿐이면 출력 없음 = 발행 불가(FAIL).
             # 증거는 '확인한 증거' 의 하위 ### 섹션(코드1/코드2 등)까지 포함해 본다.
-            # 출력 슬롯 = 소스 코드펜스 다음의 인용블록('> ...'). 미작성이면
-            # placeholder('> ⚠️ 직접 돌린 출력 채우기...')만 들어 있다.
-            # 출력 있음 신호 = 코드펜스 '밖'의 인용블록(>) 줄 중 placeholder 가
-            # 아닌 줄이 하나라도 있는 것. (소스 코드펜스·인트로 서술은 출력 아님)
+            # 출력 있음 신호(코드펜스 밖 산문에서, placeholder 아닌 줄):
+            #   (a) 인용블록('> ...') 출력, 또는
+            #   (b) '직접 돌린 출력: 10', '출력: ...', 'result: ...' 같은
+            #       출력 라벨 + 실제 값 (라벨 문법으로 제한 — 키워드만으론 가짜통과).
+            # (소스 코드펜스·인트로 서술은 출력으로 치지 않음.)
             ev_full = section_with_children(body, ["확인한 증거"]) or ""
             ev_full_prose, _ = parse_fences(ev_full)
-            real_output = [l for l in ev_full_prose
-                           if l.strip().startswith(">")
-                           and l.strip().lstrip(">").strip()
-                           and PLACEHOLDER_MARK not in l]
-            ev_has_output = bool(real_output)
+
+            def _is_real_output(line):
+                s = line.strip()
+                if not s or PLACEHOLDER_MARK in line:
+                    return False
+                if s.startswith(">") and s.lstrip(">").strip():
+                    return True                       # (a) 인용블록 출력
+                return bool(OUTPUT_LABEL_RE.search(s))  # (b) 출력 라벨 + 값
+
+            ev_has_output = any(_is_real_output(l) for l in ev_full_prose)
             if not has_heading(sections, ["확인한 증거"]) or not ev_has_output:
                 fail.append(
                     "modality=code: 코드펜스는 있는데 `## 확인한 증거`에 "
