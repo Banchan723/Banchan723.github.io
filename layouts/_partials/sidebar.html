@@ -58,8 +58,8 @@
   </div>
   {{ end }}
 
-  {{/* ── now learning ────────────────────────────────── */}}
-  {{ with site.Params.learning }}
+  {{/* ── now learning (data/learning.yaml) ───────────── */}}
+  {{ with (index site.Data "learning") }}{{ with .items }}
   <div class="b-grp">
     <div class="b-learn">
       <div class="hd"><span class="pulse"></span> 요즘 공부 중 · now learning</div>
@@ -71,7 +71,7 @@
       {{ end }}
     </div>
   </div>
-  {{ end }}
+  {{ end }}{{ end }}
 
   {{/* ── footer ──────────────────────────────────────── */}}
   <div class="b-side-foot">

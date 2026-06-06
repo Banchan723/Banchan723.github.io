@@ -328,7 +328,10 @@
     buttons.forEach(function (btn) {
       btn.addEventListener("click", function () {
         var block = btn.closest(".b-code");
-        var pre = block && block.querySelector("pre");
+        // lineNumbersInTable: code lives in the last column's <pre>; the first
+        // <pre> is the line-number gutter. Fall back to the only <pre> otherwise.
+        var pre = block && (block.querySelector(".lntable td.lntd:last-child pre")
+          || block.querySelector("pre"));
         if (!pre) return;
 
         var text = pre.innerText;

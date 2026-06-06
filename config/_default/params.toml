@@ -12,21 +12,8 @@ rssFullContent = true
   since    = "2023"
   avatar   = "BC"          # 아바타 이니셜 (이미지 대신 텍스트)
 
-# ── 요즘 공부 중 (사이드바 진행바) — 사용자가 자유롭게 수정 ──
-[[learning]]
-  label = "Unreal C++"
-  pct   = 45
-  color = "var(--cyan)"
-
-[[learning]]
-  label = "Blender 리깅"
-  pct   = 30
-  color = "var(--orange)"
-
-[[learning]]
-  label = "C++ 스마트포인터"
-  pct   = 60
-  color = "var(--blue)"
+# ── '요즘 공부 중' 위젯 데이터는 data/learning.yaml 로 분리 ──
+#    (노션 학습 진행 DB → 발행 시 동기화의 목적지. 클로드가 갱신)
 
 # ── 푸터 (연도 등 보존) ──────────────────────────────────
 [footer]

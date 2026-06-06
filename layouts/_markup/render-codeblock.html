@@ -1,5 +1,4 @@
 {{- $lang := or .Type "code" -}}
-{{- $fname := $lang -}}
 {{- $names := dict
   "cpp" "snippet.cpp"
   "c++" "snippet.cpp"
@@ -19,13 +18,12 @@
   "bash" "run.sh"
   "md" "note.md"
 -}}
-{{- with index $names $lang }}{{ $fname = . }}{{ end -}}
+{{- /* 파일명: 코드펜스 정보스트링 title 우선 → 언어별 기본명 → 언어 */ -}}
+{{- $fname := or .Attributes.title (index $names $lang) $lang -}}
+{{- /* 줄번호(거터)는 config markup.highlight(lineNos·lineNumbersInTable)를 상속 */ -}}
 {{- $highlighted := transform.Highlight (trim .Inner "\n") $lang -}}
 <div class="b-code">
   <div class="cbar">
-    <span class="d" style="background:#ff5f57"></span>
-    <span class="d" style="background:#febc2e"></span>
-    <span class="d" style="background:#28c840"></span>
     <span class="fn">{{ $fname }}</span>
     <span class="cp" role="button" tabindex="0">copy</span>
   </div>

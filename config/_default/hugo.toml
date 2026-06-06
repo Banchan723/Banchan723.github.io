@@ -13,11 +13,12 @@ buildFuture            = true   # 한국시간 글이 UTC 기준 "미래"라 빠
 # 마크다운 렌더링: Chroma 코드 하이라이팅 + TOC + HTML 통과
 [markup]
   [markup.highlight]
-    noClasses    = false   # Chroma 클래스 출력 (CSS가 .b-code 안에서 색칠)
-    lineNos      = false
-    codeFences   = true
-    guessSyntax  = true
-    tabWidth     = 2
+    noClasses           = false   # Chroma 클래스 출력 (CSS가 .b-code 안에서 색칠)
+    lineNos             = true    # 줄번호 켜기
+    lineNumbersInTable  = true    # 줄번호를 별도 칼럼(거터)으로 → 복사 시 코드만
+    codeFences          = true
+    guessSyntax         = true
+    tabWidth            = 2
   [markup.goldmark.renderer]
     unsafe = true          # 본문 내 인라인 HTML 통과
   [markup.tableOfContents]

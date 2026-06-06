@@ -4,9 +4,9 @@
    ============================================================ */
 :root {
   /* surfaces */
-  --bg-0:  #0a0e14;   /* deepest — page void */
-  --bg-1:  #0f141b;   /* sidebar / chrome */
-  --bg-2:  #131a22;   /* cards / panels */
+  --bg-0:  #0c1118;   /* deepest — page void (살짝 완화) */
+  --bg-1:  #11161f;   /* sidebar / chrome */
+  --bg-2:  #151c26;   /* cards / panels */
   --bg-3:  #1a222c;   /* hover / raised */
   --line:  #1f2832;   /* hairline borders */
   --line-2:#2a3542;   /* stronger borders */

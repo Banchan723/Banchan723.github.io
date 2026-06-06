@@ -177,15 +177,15 @@ body { background: var(--bg-0); color: var(--fg); font-family: var(--mono); }
   color: var(--fg-2); font-style: normal; background: var(--bg-1); border-radius: 0 8px 8px 0; }
 .b-art .body blockquote::before { content: "“"; color: var(--fg-3); margin-right: 2px; }
 /* code block */
-.b-code { margin: 22px 0; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: var(--bg-1); }
-.b-code .cbar { display: flex; align-items: center; gap: 8px; padding: 8px 13px; background: var(--bg-2);
+.b-code { margin: 22px 0; border: 1px solid #2e3a48; border-radius: 10px; overflow: hidden; background: #161d27;
+  box-shadow: 0 4px 18px -10px rgba(0,0,0,.5); }
+.b-code .cbar { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: var(--bg-2);
   border-bottom: 1px solid var(--line); }
-.b-code .cbar .d { width: 10px; height: 10px; border-radius: 50%; }
-.b-code .cbar .fn { margin-left: 8px; font-size: 11.5px; color: var(--fg-3); }
+.b-code .cbar .fn { font-size: 11.5px; color: var(--fg-3); }
 .b-code .cbar .cp { margin-left: auto; font-size: 11px; color: var(--fg-3); cursor: pointer; }
 .b-code .cbar .cp:hover { color: var(--accent); }
-.b-code pre { margin: 0; padding: 15px 16px; overflow-x: auto; font-size: 13px; line-height: 1.7;
-  color: #cdd6e3; font-family: var(--mono); }
+.b-code pre { margin: 0; padding: 16px 18px; overflow-x: auto; font-size: 13.5px; line-height: 1.85;
+  color: #dbe3ef; font-family: var(--mono); }
 /* TIL callout — useful recurring element */
 .b-til { margin: 26px 0; border: 1px solid color-mix(in oklab, var(--accent) 35%, var(--line));
   border-left: 3px solid var(--accent); border-radius: 0 10px 10px 0;
@@ -231,7 +231,7 @@ body.light {
   --cyan: #1098a8; --orange: #d9730d; --amber: #b87d00; --pink: #d6478a;
 }
 body.light .b-cover .glyph { color: rgba(0,0,0,.18); }
-body.light .b-code pre { color: #1c2430; }
+/* 코드블록은 라이트 모드에서도 다크 패널 유지 → 밝은 글자(#dbe3ef) 상속 */
 
 /* ── code highlighting (Hugo Chroma) ──────────────────── */
 /* Original JS highlighter (.cm/.kw/.st/.fn2/.nu) replaced by Chroma tokens.
@@ -239,8 +239,15 @@ body.light .b-code pre { color: #1c2430; }
    string=--accent, function=--blue, number=--orange. */
 .b-code .chroma { background: none; margin: 0; }
 .b-code .chroma code { font-family: var(--mono); }
+/* line-number gutter (lineNumbersInTable=true) */
+.b-code .lntable { border: 0; margin: 0; width: 100%; border-spacing: 0; }
+.b-code .lntable td { padding: 0; border: 0; vertical-align: top; }
+.b-code .lntable td.lntd:first-child { width: 1%; white-space: nowrap;
+  background: color-mix(in oklab, #161d27 85%, #000); border-right: 1px solid #222b37; }
+.b-code .lntd:first-child pre { padding: 16px 14px; }
+.b-code .lntd:last-child pre { padding: 16px 18px; }
 /* comments */
-.b-code .c, .b-code .c1, .b-code .cm, .b-code .cs, .b-code .cp, .b-code .cpf { color: var(--fg-3); font-style: normal; }
+.b-code .c, .b-code .c1, .b-code .cm, .b-code .cs, .b-code .cp, .b-code .cpf { color: #7f8da3; font-style: italic; }
 /* keywords */
 .b-code .k, .b-code .kc, .b-code .kd, .b-code .kn, .b-code .kp, .b-code .kr, .b-code .kt { color: var(--purple); }
 /* strings */
@@ -256,7 +263,7 @@ body.light .b-code pre { color: #1c2430; }
 .b-code .nd { color: var(--amber); }     /* decorators */
 .b-code .o, .b-code .ow { color: var(--fg-2); }  /* operators */
 .b-code .err { color: var(--red); }
-.b-code .ln, .b-code .lnt { color: var(--fg-3); }  /* line numbers */
+.b-code .ln, .b-code .lnt { color: #65728a; user-select: none; }  /* line numbers (gutter) */
 
 /* light theme code mapping */
 body.light .b-code .c, body.light .b-code .c1, body.light .b-code .cm,
