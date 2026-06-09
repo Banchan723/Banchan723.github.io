@@ -1,0 +1,20 @@
+{{- /* topic-locate.html — 글의 topic_id로 roadmap 트리에서 위치를 찾아 dict 반환.
+       반환 dict: {topic, color, group, title, nodes, idx}  (못 찾으면 빈 dict)
+       단일 소스 = data/roadmap.yaml. single.html이 이걸로 breadcrumb·형제토픽을 렌더.
+       URL·파일구조 불변 — 순수 조회만. */ -}}
+{{- $tid := .Params.topic_id -}}
+{{- $loc := dict -}}
+{{- with $tid -}}
+  {{- range site.Data.roadmap.tree -}}
+    {{- $topic := . -}}
+    {{- range .groups -}}
+      {{- $group := . -}}
+      {{- range $i, $node := .nodes -}}
+        {{- if and $node.topic_id (eq $node.topic_id $tid) -}}
+          {{- $loc = dict "topic" $topic.topic "color" $topic.color "group" $group.group "title" $node.title "nodes" $group.nodes "idx" $i -}}
+        {{- end -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- return $loc -}}

@@ -21,15 +21,26 @@ tree:
     groups:
       - group: "메모리와 포인터"
         nodes:
-          - { title: "포인터", status: published, slug: "cpp-pointer" }
-          - { title: "참조", status: published, slug: "cpp-reference" }
-          - { title: "new / delete (힙·스택)", status: published, slug: "cpp-new-delete" }
-          - { title: "스마트포인터 (unique·shared)", status: published, slug: "cpp-smart-pointer" }
+          # 포인터 = 시범 재작성 대상. scope/required_evidence를 먼저 채워 새 구조의 기준점으로 삼는다.
+          # (scope/required_evidence는 "그 토픽을 다시 깊게 공부한 결과" — 나머지 노드는 재작성 시 채운다.)
+          - title: "포인터"
+            status: published
+            slug: "cpp-pointer"
+            topic_id: "cpp.pointer.basic"      # 안정 식별자 (글 front matter topic_id와 연결)
+            scope:
+              include: [포인터 선언과 주소(&), 역참조(*) 읽기·쓰기, 가리키는 대상 변경, 좌변·우변 *p 차이]
+              exclude: [함수 매개변수로 원본 변경, 포인터 산술, 배열과 포인터, 이중 포인터, 스마트포인터]
+            required_evidence:                  # CI는 '있나 없나'만 본다 (사실판단 X)
+              - 직접_돌린_출력
+              - 컴파일_실패_예제                # 있으면 강력 (없어도 됨 = 경고)
+          - { title: "참조", status: published, slug: "cpp-reference", topic_id: "cpp.reference.basic" }
+          - { title: "new / delete (힙·스택)", status: published, slug: "cpp-new-delete", topic_id: "cpp.new-delete.basic" }
+          - { title: "스마트포인터 (unique·shared)", status: published, slug: "cpp-smart-pointer", topic_id: "cpp.smart-pointer.basic" }
           - { title: "new[] / delete[]", status: planned }
 
       - group: "클래스와 객체지향"
         nodes:
-          - { title: "클래스 기초 (생성자·소멸자·this)", status: published, slug: "cpp-class" }
+          - { title: "클래스 기초 (생성자·소멸자·this)", status: published, slug: "cpp-class", topic_id: "cpp.class.basic" }
           - { title: "멤버 초기화 리스트", status: planned }
           - { title: "접근지정자 (public / private)", status: planned }
           - { title: "상속", status: planned }
@@ -37,5 +48,5 @@ tree:
 
       - group: "const와 자격"
         nodes:
-          - { title: "const (변수 · 멤버함수 · 참조)", status: published, slug: "cpp-const" }
+          - { title: "const (변수 · 멤버함수 · 참조)", status: published, slug: "cpp-const", topic_id: "cpp.const.basic" }
           - { title: "const 매개변수", status: planned }

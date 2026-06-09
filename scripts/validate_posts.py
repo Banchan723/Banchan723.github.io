@@ -70,6 +70,22 @@ RECOMMENDED_SECTIONS = [
     ("## 다른 예시에 적용해보기", ["다른 예시에 적용해보기"]),
 ]
 
+# ── 새 구조(교육 레퍼런스) 검증용 ─────────────────────────────────────
+# content_schema 마커로 점진 마이그레이션: 마커 있는 글만 새 6골격 규칙으로 검사,
+# 없는 글은 기존 8섹션 규칙 유지(기존 6글 CI 안 깨짐). 6글 모두 이전되면 옛 규칙 제거.
+SCHEMAS = {"reference-v1"}            # 허용되는 content_schema 값
+# 새 필수 섹션(교육 레퍼런스 6골격) — 헤딩에 키워드 하나라도 있으면 통과
+REQUIRED_SECTIONS_V2 = [
+    ("## 개념 정의", ["개념", "정의"]),
+    ("## 왜 필요한가", ["왜 필요", "필요한가"]),
+    ("## 문법과 동작", ["문법", "동작"]),
+    ("## 직접 확인한 예제", ["직접 확인", "확인한 예제"]),
+    ("## 흔한 실수와 오해", ["실수", "오해"]),
+    ("## 관련 토픽", ["관련 토픽", "다음 경계", "다음 토픽"]),
+]
+# topic_id(선택): 트리 노드 식별자. 점 구분 소문자/숫자/하이픈. 예) cpp.pointer.basic
+TOPIC_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*(?:\.[a-z0-9]+(?:-[a-z0-9]+)*)*$")
+
 CLICHES = ["쉽게 말해", "일반적으로", "중요합니다", "효율적입니다"]
 CLICHE_LIMIT = 3          # 이 횟수 "이상"이면 WARN
 MAX_SENTENCE_LEN = 120    # 한 문장 글자수 초과 → WARN
@@ -467,6 +483,144 @@ def validate_readability(data, body):
     return fail, warn
 
 
+def extract_verification_block(body):
+    """본문 코드펜스 중 `verification:` 루트키를 가진 yaml 블록을 파싱해 반환.
+
+    검증메타블록(설계도 4절)은 글 끝 yaml 코드펜스:
+        ```yaml
+        verification:
+          checked_claims:
+            - { claim: "...", evidence: "..." }
+        unknowns:
+          - "..."
+        ```
+    여러 개면 마지막 것. 못 찾거나 파싱 실패면 None.
+    """
+    _, fences = parse_fences(body)
+    found = None
+    for _start, content in fences:
+        if "verification" not in content:
+            continue
+        try:
+            d = yaml.safe_load(content)
+        except yaml.YAMLError:
+            continue
+        if isinstance(d, dict) and "verification" in d:
+            found = d  # 마지막 것으로 갱신
+    return found
+
+
+def validate_readability_v2(data, body):
+    """새 구조(content_schema: reference-v1) 검증. (fail_list, warn_list) 반환.
+
+    교육 레퍼런스 6골격 + 검증메타블록 + 매체별 증거(기존 로직 재사용).
+    """
+    fail = []
+    warn = []
+
+    sections = section_index(body)
+    prose_lines, fences = parse_fences(body)
+    prose_text = "\n".join(prose_lines)
+
+    # ── 1. 6골격 필수 섹션 ───────────────────────────────────────────
+    for label, kws in REQUIRED_SECTIONS_V2:
+        if not has_heading(sections, kws):
+            fail.append(f"필수 섹션 누락: `{label}`")
+
+    # ── 2. 검증메타블록(verification/unknowns) ───────────────────────
+    vblock = extract_verification_block(body)
+    if vblock is None:
+        fail.append(
+            "검증메타블록 없음: 글 끝에 ```yaml 펜스로 "
+            "`verification:`(checked_claims) + `unknowns:` 를 둬야 함")
+    else:
+        ver = vblock.get("verification") or {}
+        claims = ver.get("checked_claims") if isinstance(ver, dict) else None
+        if not claims or not isinstance(claims, list):
+            fail.append("검증메타블록에 verification.checked_claims(주장↔증거)가 비어 있음")
+        else:
+            for i, c in enumerate(claims):
+                if not isinstance(c, dict) or not c.get("claim") or not c.get("evidence"):
+                    fail.append(f"checked_claims[{i}]에 claim 또는 evidence 누락")
+        # unknowns: 비어 있으면 WARN(학습로그 정체성 — 보통 다음 경계가 있다. 강제는 안 함)
+        unknowns = vblock.get("unknowns")
+        if not unknowns:
+            warn.append("검증메타블록 `unknowns`가 비어 있음 (정말 더 배울 게 없나? 보통 다음 경계가 있다)")
+
+    # ── 3. 이미지 alt 텍스트 (산문, 코드펜스 밖) ─────────────────────
+    imgs = [m for ln in prose_lines for m in IMG_RE.finditer(ln)]
+    for m in imgs:
+        if not m.group("alt").strip():
+            fail.append(f"이미지 alt 텍스트 없음: ![]({m.group('url').strip()})")
+
+    # ── 4. 매체별 증거 강제 (증거 섹션 = "직접 확인한 예제") ──────────
+    #   기존 _is_real_output 로직 재사용. 옛 구조의 "확인한 증거" → 새 "직접 확인한 예제".
+    modality = data.get("modality") or []
+    if isinstance(modality, str):
+        modality = [modality]
+    modality = [str(m).strip().lower() for m in modality]
+    EVIDENCE_KW = ["직접 확인", "확인한 예제"]
+    ev_section = find_section(sections, EVIDENCE_KW) or ""
+    ev_prose_lines, ev_fences = parse_fences(ev_section)
+    ev_imgs = [m for ln in ev_prose_lines for m in IMG_RE.finditer(ln)]
+
+    if "code" in modality:
+        if fences:
+            ev_full = section_with_children(body, EVIDENCE_KW) or ""
+            ev_full_prose, _ = parse_fences(ev_full)
+
+            def _is_real_output(line):
+                s = line.strip()
+                if not s or PLACEHOLDER_MARK in line:
+                    return False
+                if s.startswith(">") and s.lstrip(">").strip():
+                    return True
+                return bool(OUTPUT_LABEL_RE.search(s))
+
+            ev_has_output = any(_is_real_output(l) for l in ev_full_prose)
+            if not has_heading(sections, EVIDENCE_KW) or not ev_has_output:
+                fail.append(
+                    "modality=code: 코드펜스는 있는데 `## 직접 확인한 예제`에 "
+                    "실행 출력/결과가 없음(placeholder는 출력으로 보지 않음)")
+        else:
+            fail.append("modality=code: 본문에 코드펜스(```)가 없음")
+
+    if "visual" in modality:
+        ev_nonimg = [l for l in ev_prose_lines
+                     if l.strip() and not IMG_RE.search(l)]
+        has_steps = (any(LIST_ITEM_RE.match(l) for l in ev_prose_lines)
+                     or len(ev_nonimg) >= 2)
+        if not imgs:
+            fail.append("modality=visual: 이미지 참조(![...](...))가 없음")
+        if not has_heading(sections, EVIDENCE_KW) or not has_steps:
+            fail.append(
+                "modality=visual: `## 직접 확인한 예제`에 재현 단계(리스트/설정값)가 없음")
+
+    if "video" in modality:
+        has_url = bool(URL_RE.search(body))
+        has_result = bool(ev_fences) or bool(ev_imgs)
+        if not has_url:
+            fail.append("modality=video: 출처 URL(http...)이 본문에 없음")
+        if not has_result:
+            fail.append(
+                "modality=video: `## 직접 확인한 예제`에 재현/변형 결과(코드펜스/이미지)가 없음")
+
+    # ── 5. 상투어·긴 문장/문단 (WARN) — 기존과 동일 ──────────────────
+    for cliche in CLICHES:
+        n = prose_text.count(cliche)
+        if n >= CLICHE_LIMIT:
+            warn.append(f"상투어 '{cliche}' {n}회 (권장 {CLICHE_LIMIT}회 미만)")
+    for para in prose_paragraphs(prose_lines):
+        sents = split_sentences(para)
+        if len(sents) > MAX_PARA_SENTENCES:
+            warn.append(f"한 문단 {MAX_PARA_SENTENCES}문장 초과")
+        for sent in sents:
+            if len(sent) > MAX_SENTENCE_LEN:
+                warn.append(f"한 문장 {MAX_SENTENCE_LEN}자 초과")
+
+    return fail, warn
+
+
 def validate_post(path, contexts, categories):
     rel = os.path.relpath(path, ROOT).replace("\\", "/")
     local = []
@@ -558,9 +712,25 @@ def validate_post(path, contexts, categories):
                 local.append(
                     f"modality '{mv}' 허용 안 됨 (허용: {sorted(MODALITIES)})")
 
-    # ── readability(매체별) 검증 (SYSTEM-SPEC 4-1 (5)) ──
+    # content_schema(선택) — 새 구조 마커. 있으면 허용값만.
+    schema = data.get("content_schema")
+    if schema not in (None, "", []):
+        if str(schema).strip() not in SCHEMAS:
+            local.append(f"content_schema '{schema}' 허용 안 됨 (허용: {sorted(SCHEMAS)})")
+
+    # topic_id(선택) — 트리 노드 식별자. 있으면 형식만 검사.
+    tid = data.get("topic_id")
+    if tid not in (None, "", []):
+        if not TOPIC_ID_RE.match(str(tid)):
+            local.append(
+                f"topic_id '{tid}' 형식 오류 (점 구분 소문자/숫자/하이픈, 예: cpp.pointer.basic)")
+
+    # ── readability(매체별) 검증 — content_schema 마커로 새/옛 규칙 분기 ──
     body = split_body(text)
-    r_fail, r_warn = validate_readability(data, body)
+    if str(schema).strip() == "reference-v1":
+        r_fail, r_warn = validate_readability_v2(data, body)   # 새 6골격
+    else:
+        r_fail, r_warn = validate_readability(data, body)      # 기존 8섹션
     local.extend(r_fail)
     warn.extend(r_warn)
 

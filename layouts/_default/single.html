@@ -10,13 +10,21 @@
 {{- $en := .Params.en -}}
 {{- $older := .NextInSection -}}{{/* older = earlier date */}}
 {{- $newer := .PrevInSection -}}{{/* newer = later date */}}
+{{- $loc := partial "topic-locate.html" . -}}{{/* roadmap 트리 위치 (topic_id 기반) */}}
 <div class="b-wrap">
 
   <div class="b-crumb">
     <a href="{{ "/" | relURL }}">~</a><span class="sep">/</span>
+    {{ if $loc.topic }}
+    <a href="{{ "/roadmap/" | relURL }}">roadmap</a>
+    <span class="sep">/</span><span class="tcr">{{ $loc.topic }}</span>
+    <span class="sep">/</span><span class="tcr">{{ $loc.group }}</span>
+    <span class="sep">/</span><span class="cur">{{ $loc.title }}</span>
+    {{ else }}
     <a href="{{ "/" | relURL }}">posts</a>
     {{ with $primary }}<span class="sep">/</span><a href="{{ with $catPage }}{{ .Permalink }}{{ else }}{{ "/" | relURL }}{{ end }}">{{ . }}</a>{{ end }}
     <span class="sep">/</span><span class="cur">{{ or .Params.slug .File.ContentBaseName }}.md</span>
+    {{ end }}
   </div>
 
   <div class="b-art-grid">
@@ -38,6 +46,27 @@
       {{ with .Params.tags }}
       <div class="b-ptags" style="margin-top:28px">
         {{ range . }}{{ $tp := site.GetPage (printf "/tags/%s" .) }}<a class="b-ptag" href="{{ with $tp }}{{ .Permalink }}{{ else }}{{ "/" | relURL }}{{ end }}">#{{ . }}</a>{{ end }}
+      </div>
+      {{ end }}
+
+      {{ if $loc.group }}
+      {{ $posts := where site.RegularPages "Section" "post" }}
+      <div class="ts-wrap">
+        <div class="ts-head"><span class="ts-dot" style="background:{{ $loc.color }}"></span>{{ $loc.topic }} <span class="ts-sep">›</span> {{ $loc.group }} <a class="ts-all" href="{{ "/roadmap/" | relURL }}">전체 로드맵 ›</a></div>
+        <div class="ts-nodes">
+          {{ range $i, $n := $loc.nodes }}
+            {{ if eq $i $loc.idx }}
+              <span class="ts-node cur">{{ $n.title }}</span>
+            {{ else if and (eq $n.status "published") $n.slug }}
+              {{ $m := index (where $posts "Params.slug" $n.slug) 0 }}
+              {{ if $m }}<a class="ts-node pub" href="{{ $m.Permalink }}">{{ $n.title }}</a>{{ else }}<span class="ts-node plan">{{ $n.title }}</span>{{ end }}
+            {{ else if eq $n.status "learning" }}
+              <span class="ts-node now">{{ $n.title }}</span>
+            {{ else }}
+              <span class="ts-node plan">{{ $n.title }}</span>
+            {{ end }}
+          {{ end }}
+        </div>
       </div>
       {{ end }}
 

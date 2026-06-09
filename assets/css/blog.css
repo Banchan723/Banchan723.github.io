@@ -215,6 +215,26 @@ body { background: var(--bg-0); color: var(--fg); font-family: var(--mono); }
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .b-pn a:hover .tt { color: var(--accent); }
 
+/* breadcrumb 트리 세그먼트 */
+.b-crumb .tcr { color: var(--fg-2); }
+
+/* 글 하단 — 같은 그룹 형제 토픽(roadmap 미니 트레일) */
+.ts-wrap { margin-top: 40px; padding-top: 22px; border-top: 1px solid var(--line); }
+.ts-head { font-size: 11.5px; color: var(--fg-3); display: flex; align-items: center; gap: 8px;
+  letter-spacing: .3px; margin-bottom: 11px; }
+.ts-head .ts-dot { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+.ts-head .ts-sep { color: var(--line-2); }
+.ts-head .ts-all { margin-left: auto; color: var(--fg-3); }
+.ts-head .ts-all:hover { color: var(--accent); }
+.ts-nodes { display: flex; flex-wrap: wrap; gap: 7px; }
+.ts-node { font-size: 12.5px; padding: 5px 11px; border-radius: 7px; border: 1px solid var(--line-2);
+  color: var(--fg-2); white-space: nowrap; }
+a.ts-node:hover { border-color: var(--accent-d); color: var(--accent); background: var(--bg-2); }
+.ts-node.cur { color: var(--bg-0); background: var(--accent); border-color: var(--accent); font-weight: 600; }
+.ts-node.pub { color: var(--green); border-color: color-mix(in oklab, var(--green) 38%, transparent); }
+.ts-node.now { color: var(--amber); border-color: color-mix(in oklab, var(--amber) 45%, transparent); }
+.ts-node.plan { color: var(--fg-3); border-style: dashed; }
+
 @media (max-width: 860px) {
   .b-art-grid { grid-template-columns: 1fr; } .b-toc { display: none; }
 }

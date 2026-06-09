@@ -10,6 +10,7 @@ tags:
 modality:
   - "code"
 canonical_topic: "class"
+topic_id: "cpp.class.basic"
 context: "cpp"
 level: "beginner"
 ---

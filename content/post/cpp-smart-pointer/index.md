@@ -10,6 +10,7 @@ tags:
 modality:
   - "code"
 canonical_topic: "smart-pointer"
+topic_id: "cpp.smart-pointer.basic"
 context: "cpp"
 level: "beginner"
 ---

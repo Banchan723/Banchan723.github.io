@@ -10,6 +10,7 @@ tags:
 modality:
   - "code"
 canonical_topic: "new-delete"
+topic_id: "cpp.new-delete.basic"
 context: "cpp"
 level: "beginner"
 ---
