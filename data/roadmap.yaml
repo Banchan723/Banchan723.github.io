@@ -1,0 +1,41 @@
+# ============================================================
+#  roadmap.yaml — 학습 로드맵(지식 트리) 데이터 (단일 소스)
+#
+#  이건 "완성해야 할 목록"이 아니라 "내가 어디까지 왔고 어디로 갈지" 지도다.
+#  파일 구조/URL은 안 건드린다. 이 YAML만 고치면 /roadmap/ 페이지가 바뀐다.
+#
+#  채우는 방법:
+#   - 글을 발행하면 해당 노드 status: published + slug 기입
+#     (slug = 발행 글의 slug. URL은 /p/<slug>/ 로 자동 연결)
+#   - 지금 공부 중이면 status: learning
+#   - 아직 안 배운 다음 단계는 status: planned (slug 없음 — 링크 안 걸림)
+#
+#  status: published | learning | planned
+#  ⚠ planned 칸은 '숙제'가 아니라 '앞으로 갈 길'. 억지로 다 채우지 말 것.
+#     각 글의 "아직 모르는 것"에서 실제로 나온 다음 주제만 적는다.
+# ============================================================
+
+tree:
+  - topic: "C++"
+    color: "var(--blue)"
+    groups:
+      - group: "메모리와 포인터"
+        nodes:
+          - { title: "포인터", status: published, slug: "cpp-pointer" }
+          - { title: "참조", status: published, slug: "cpp-reference" }
+          - { title: "new / delete (힙·스택)", status: published, slug: "cpp-new-delete" }
+          - { title: "스마트포인터 (unique·shared)", status: published, slug: "cpp-smart-pointer" }
+          - { title: "new[] / delete[]", status: planned }
+
+      - group: "클래스와 객체지향"
+        nodes:
+          - { title: "클래스 기초 (생성자·소멸자·this)", status: published, slug: "cpp-class" }
+          - { title: "멤버 초기화 리스트", status: planned }
+          - { title: "접근지정자 (public / private)", status: planned }
+          - { title: "상속", status: planned }
+          - { title: "가상함수 · 다형성", status: planned }
+
+      - group: "const와 자격"
+        nodes:
+          - { title: "const (변수 · 멤버함수 · 참조)", status: published, slug: "cpp-const" }
+          - { title: "const 매개변수", status: planned }

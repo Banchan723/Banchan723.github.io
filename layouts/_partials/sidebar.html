@@ -18,6 +18,7 @@
       <a href="{{ "/" | relURL }}"{{ if .IsHome }} class="on"{{ end }}>
         <span class="gl">~</span> Home <span class="ct">{{ $postCount }}</span>
       </a>
+      <a href="{{ "/roadmap/" | relURL }}"{{ if eq .Layout "roadmap" }} class="on"{{ end }}><span class="gl">⌗</span> Roadmap</a>
       <a href="{{ "/archives/" | relURL }}"><span class="gl">≡</span> Archive</a>
       <a href="{{ "/about/" | relURL }}"><span class="gl">◔</span> About</a>
       {{ with .OutputFormats.Get "rss" }}

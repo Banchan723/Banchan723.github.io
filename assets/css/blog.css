@@ -279,3 +279,37 @@ body.light .b-code .dl { color: #1a9a5f; }
 body.light .b-code .nf, body.light .b-code .nb, body.light .b-code .fm { color: #2f6df6; }
 body.light .b-code .m, body.light .b-code .mi, body.light .b-code .mf, body.light .b-code .mh,
 body.light .b-code .mo, body.light .b-code .mb, body.light .b-code .il { color: #d9730d; }
+
+/* ── roadmap (/roadmap/) ─────────────────────────────── */
+.rm-lead { color: var(--fg-2); font-size: 13.5px; line-height: 1.7; margin: 4px 0 22px;
+  padding: 12px 15px; background: var(--bg-2); border: 1px solid var(--line);
+  border-left: 2px solid var(--accent); border-radius: 8px; }
+.rm-lead b { color: var(--fg); }
+.rm-bk { font-size: 11px; padding: 0 7px; border-radius: 20px; border: 1px solid var(--line-2); white-space: nowrap; }
+.rm-bk.pub  { color: var(--green); border-color: color-mix(in oklab, var(--green) 40%, transparent); }
+.rm-bk.plan { color: var(--fg-3); border-style: dashed; }
+
+.rm-topic { margin: 0 0 26px; }
+.rm-topic > h2 { display: flex; align-items: center; gap: 9px; font-size: 16px; margin: 0 0 2px;
+  padding-bottom: 9px; border-bottom: 1px solid var(--line); }
+.rm-topic > h2 .dot { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+
+.rm-grp { margin: 16px 0 0; }
+.rm-grp .gh { font-size: 11px; color: var(--fg-3); letter-spacing: .8px; text-transform: uppercase; margin: 0 0 7px; padding-left: 2px; }
+.rm-nodes { display: flex; flex-direction: column; gap: 2px;
+  border-left: 1px solid var(--line-2); padding-left: 13px; margin-left: 4px; }
+
+.rm-node { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 7px;
+  font-size: 13.5px; color: var(--fg-2); text-decoration: none; }
+a.rm-node { color: var(--fg); }
+a.rm-node:hover { background: var(--bg-2); }
+a.rm-node:hover .tt { color: var(--accent); }
+.rm-node.plan { opacity: .7; }
+.rm-node.plan .tt { border-bottom: 1px dashed var(--line-2); }
+.rm-node .tt { flex: 1 1 auto; }
+
+.rm-badge { margin-left: auto; font-size: 10.5px; padding: 1px 9px; border-radius: 20px;
+  border: 1px solid var(--line-2); white-space: nowrap; flex: none; }
+.rm-badge.pub  { color: var(--green); border-color: color-mix(in oklab, var(--green) 40%, transparent); }
+.rm-badge.now  { color: var(--amber); border-color: color-mix(in oklab, var(--amber) 45%, transparent); }
+.rm-badge.plan { color: var(--fg-3); border-style: dashed; }

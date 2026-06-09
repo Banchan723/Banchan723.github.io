@@ -1,0 +1,68 @@
+{{ define "main" }}
+{{- $posts := where site.RegularPages "Section" "post" -}}
+{{- /* 트리 노드 집계: 발행 / 전체 */ -}}
+{{- $total := 0 }}{{ $pub := 0 -}}
+{{- range site.Data.roadmap.tree }}{{ range .groups }}{{ range .nodes -}}
+  {{- $total = add $total 1 -}}
+  {{- if eq .status "published" }}{{ $pub = add $pub 1 }}{{ end -}}
+{{- end }}{{ end }}{{ end -}}
+
+<div class="b-wrap" style="max-width:780px">
+  <div class="b-crumb">
+    <a href="{{ "/" | relURL }}">~</a><span class="sep">/</span>
+    <span class="cur">roadmap</span>
+  </div>
+
+  <div class="b-lhead" style="margin-bottom:14px">
+    <h1><span class="hash">#</span> {{ .Title }}</h1>
+    <span class="meta">{{ $pub }} / {{ $total }} 발행</span>
+  </div>
+
+  <div class="rm-lead">
+    완성해야 할 목록이 아니라, <b>내가 어디까지 왔고 앞으로 어디로 갈지</b> 그리는 지도입니다.
+    <span class="rm-bk pub">발행</span> 칸은 눌러서 읽을 수 있고,
+    <span class="rm-bk plan">점선</span> 칸은 숙제가 아니라 앞으로 갈 길입니다.
+  </div>
+
+  {{ range site.Data.roadmap.tree }}
+    {{ $topic := . }}
+    <section class="rm-topic">
+      <h2><span class="dot" style="background:{{ $topic.color }}"></span>{{ $topic.topic }}</h2>
+      {{ range $topic.groups }}
+        <div class="rm-grp">
+          <div class="gh">{{ .group }}</div>
+          <div class="rm-nodes">
+            {{ range .nodes }}
+              {{ if and (eq .status "published") .slug }}
+                {{ $match := index (where $posts "Params.slug" .slug) 0 }}
+                {{ if $match }}
+                  <a class="rm-node" href="{{ $match.Permalink }}">
+                    <span class="tt">{{ .title }}</span>
+                    <span class="rm-badge pub">✓ 발행</span>
+                  </a>
+                {{ else }}
+                  {{/* slug 적혔지만 글을 못 찾음 — 링크 없이 표시(데이터 점검 신호) */}}
+                  <div class="rm-node plan">
+                    <span class="tt">{{ .title }}</span>
+                    <span class="rm-badge plan">slug? {{ .slug }}</span>
+                  </div>
+                {{ end }}
+              {{ else if eq .status "learning" }}
+                <div class="rm-node now">
+                  <span class="tt">{{ .title }}</span>
+                  <span class="rm-badge now">● 공부 중</span>
+                </div>
+              {{ else }}
+                <div class="rm-node plan">
+                  <span class="tt">{{ .title }}</span>
+                  <span class="rm-badge plan">예정</span>
+                </div>
+              {{ end }}
+            {{ end }}
+          </div>
+        </div>
+      {{ end }}
+    </section>
+  {{ end }}
+</div>
+{{ end }}
