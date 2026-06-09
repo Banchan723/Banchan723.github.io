@@ -587,6 +587,37 @@ def build_front_matter(props, ctx_to_cat, pub_date):
     }, fm
 
 
+def has_verification_block(body_md):
+    """본문에 유효한 검증메타블록(verification:/checked_claims yaml 펜스)이 있으면 True.
+
+    새 6골격(교육 레퍼런스) 글은 검증메타블록을 반드시 갖는다(validate_posts 가 강제).
+    따라서 이게 있으면 새 구조 글로 보고 content_schema=reference-v1 을 주입한다.
+    앱 작성자는 본문만 쓰면 되고(노션 속성 추가 불필요), 파이프가 마커를 붙인다.
+    """
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import validate_posts as vp
+        return vp.extract_verification_block(body_md) is not None
+    except Exception:
+        return False
+
+
+def inject_content_schema(front_matter, schema):
+    """front matter 문자열의 닫는 '---' 바로 앞에 content_schema 줄을 끼운다.
+
+    이미 content_schema 가 있으면 그대로 둔다(멱등). front matter 형식
+    (맨 앞/끝이 '---')을 가정 — build_front_matter 가 만든 문자열에만 쓴다.
+    """
+    if re.search(r"(?m)^content_schema\s*:", front_matter):
+        return front_matter
+    lines = front_matter.split("\n")
+    for i in range(len(lines) - 1, -1, -1):
+        if lines[i].strip() == "---":
+            lines.insert(i, f'content_schema: "{schema}"')
+            break
+    return "\n".join(lines)
+
+
 # ----------------------------------------------------------------------------
 # 파일 작성 (멱등)
 # ----------------------------------------------------------------------------
@@ -823,6 +854,11 @@ def process_page(token, page, ctx_to_cat):
                 append_backup = f.read()
         result = append_to_post(slug, body_md, pub_date)
     else:
+        # 새 구조(검증메타블록 있음) 글이면 content_schema 마커 자동 주입 →
+        # validate_posts 가 새 6골격 규칙으로 검사한다(없으면 옛 8섹션 규칙).
+        if has_verification_block(body_md):
+            front_matter = inject_content_schema(front_matter, "reference-v1")
+            print("[INFO] 검증메타블록 감지 → content_schema: reference-v1 주입")
         result = write_new_post(slug, front_matter, body_md)
 
     # 발행완료 마킹 전 검증 (규칙 8 — 형식 불량을 발행완료로 만들지 않는다).

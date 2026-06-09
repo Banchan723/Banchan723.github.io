@@ -730,6 +730,17 @@ def validate_post(path, contexts, categories):
     if str(schema).strip() == "reference-v1":
         r_fail, r_warn = validate_readability_v2(data, body)   # 새 6골격
     else:
+        # 새 구조 후보 가드 (Codex 권고 — "위험한 누락" 방어):
+        # 마커가 없는데 새 6골격 헤딩이 다수면, 새 구조로 쓰려다 검증메타블록을
+        # 빠뜨려 옛 규칙으로 새는 것이다. 옛 규칙을 우연히 통과해 슬쩍 발행되지
+        # 않게 FAIL 시킨다. (옛 8섹션 글은 새 골격 키워드와 거의 안 겹쳐 오탐 적음.)
+        sec = section_index(body)
+        v2_hits = sum(1 for _lbl, kws in REQUIRED_SECTIONS_V2 if has_heading(sec, kws))
+        if v2_hits >= 4:
+            local.append(
+                f"새 6골격 헤딩이 {v2_hits}개 감지되는데 content_schema/검증메타블록이 "
+                "없음 — 새 구조 글이면 글 끝에 ```yaml `verification:` 블록을 넣어라"
+                "(발행 파이프가 마커를 자동 주입). 옛 구조면 헤딩을 옛 8섹션으로.")
         r_fail, r_warn = validate_readability(data, body)      # 기존 8섹션
     local.extend(r_fail)
     warn.extend(r_warn)
