@@ -33,14 +33,15 @@ tree:
             required_evidence:                  # CI는 '있나 없나'만 본다 (사실판단 X)
               - 직접_돌린_출력
               - 컴파일_실패_예제                # 있으면 강력 (없어도 됨 = 경고)
-          - { title: "참조", status: published, slug: "cpp-reference", topic_id: "cpp.reference.basic" }
-          - { title: "new / delete (힙·스택)", status: published, slug: "cpp-new-delete", topic_id: "cpp.new-delete.basic" }
-          - { title: "스마트포인터 (unique·shared)", status: published, slug: "cpp-smart-pointer", topic_id: "cpp.smart-pointer.basic" }
+          # 아래 3개: 옛 구조 글 삭제(2026-06-11, 사용자 결정) → 재공부 후 새 6골격으로 재발행 예정
+          - { title: "참조", status: planned, topic_id: "cpp.reference.basic" }
+          - { title: "new / delete (힙·스택)", status: planned, topic_id: "cpp.new-delete.basic" }
+          - { title: "스마트포인터 (unique·shared)", status: planned, topic_id: "cpp.smart-pointer.basic" }
           - { title: "new[] / delete[]", status: planned }
 
       - group: "클래스와 객체지향"
         nodes:
-          - { title: "클래스 기초 (생성자·소멸자·this)", status: published, slug: "cpp-class", topic_id: "cpp.class.basic" }
+          - { title: "클래스 기초 (생성자·소멸자·this)", status: planned, topic_id: "cpp.class.basic" }  # 옛 글 삭제 → 재작성 예정
           - { title: "멤버 초기화 리스트", status: planned }
           - { title: "접근지정자 (public / private)", status: planned }
           - { title: "상속", status: planned }
@@ -48,5 +49,5 @@ tree:
 
       - group: "const와 자격"
         nodes:
-          - { title: "const (변수 · 멤버함수 · 참조)", status: published, slug: "cpp-const", topic_id: "cpp.const.basic" }
+          - { title: "const (변수 · 멤버함수 · 참조)", status: planned, topic_id: "cpp.const.basic" }  # 옛 글 삭제 → 재작성 예정
           - { title: "const 매개변수", status: planned }
