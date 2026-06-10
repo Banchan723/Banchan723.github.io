@@ -15,7 +15,8 @@
       └ 미달 → 약점 기록 + 상태=재학습필요 (다시 공부)
            ▼
 [② 발행]  GitHub Actions (publish-from-notion.yml) — 하루 1번 자동 + 수동 버튼
-   발행준비 행 폴링 → 본문 추출 → front matter 조립 → 검증 → 커밋·push  (LLM 없음)
+   고아락 회수 → 발행준비 행 폴링 → 본문 추출 → front matter 조립 → 검증
+   → 커밋·push → finalize(push 후에만 발행완료) → 실패 시 빨간불 알림  (LLM 없음)
            ▼
 [③ 빌드·배포]  hugo.yml — Hugo 빌드 → GitHub Pages 배포 → banchan723.github.io
 ```
@@ -51,14 +52,14 @@ Claude 구독 빼면 전부 무료: GitHub Actions·Pages(퍼블릭 레포 무�
 2. **발행 확인** — 하루 1번 자동. 급하면 GitHub Actions → Publish from Notion → Run workflow.
 3. 로컬 점검(선택): `& "C:\Users\chanyoung\AppData\Local\Microsoft\WindowsApps\python3.exe" scripts\validate_posts.py` / 미리보기 `C:\hugo2\hugo.exe server`
 
-## 현재 상태 (2026-06-07 — 가동 중)
+## 현재 상태 (2026-06-11 — 재설계 적용)
 
-- ✅ 셋업 완료 + 자동발행 스모크 테스트 통과 (노션 토큰·GitHub Secrets·커넥터).
-- ✅ **end-to-end 실증 완료** — 1호 글 라이브: https://banchan723.github.io/p/cpp-pointer/ (공부→채점→노션→자동발행→배포 한 바퀴 진짜 작동 확인).
-- ✅ 배포 연결 수정: 자동발행 커밋이 hugo 배포를 트리거하도록 `hugo.yml`에 `workflow_run` 추가 (GITHUB_TOKEN 푸시가 push 트리거 못 하는 문제).
-- ✅ 게이트 개정: '막힌 점' 섹션 필수→**선택**. 이미 아는 개념도 강한 증거(직접 돌린 출력+변형문제 통과+자기말 설명)면 발행 (SYSTEM-SPEC 4-1(3)/4-2).
-- ✅ 발행 파이프 버그 3건 수정: 본문 추출을 노션 블록→마크다운 변환으로 교체(코드펜스 충돌 해결) / 발행완료 마킹을 검증 통과 후로(규칙8) / append 검증 실패 시 원본 복원.
-- **다음**: 태블릿에서 공부하고 "블로그로 남기자" 하면 글이 쌓인다. 미세 TODO는 SYSTEM-SPEC 3절(발행커밋 SHA finalize).
+- ✅ (06-07) 셋업 + e2e 실증 — 1호 글 라이브: https://banchan723.github.io/p/cpp-pointer/
+- ✅ **재설계 적용**: 글 구조 = 교육 레퍼런스 **6골격 + 검증메타블록**(`content_schema: reference-v1` 자동주입, 옛 구조는 레거시 분기). 학습 게이트 = 행동 증거 체크리스트 + 역방향 채점. 앱 지침 = `공부전용AI-프로젝트-지침서.md` **v2.1**.
+- ✅ **옛 구조 발행글 5개 삭제**(사용자 결정) — 재공부 후 같은 slug로 재발행 예정. roadmap은 planned 복귀.
+- ✅ **파이프 신뢰성 3종**: 실패 시 워크플로 빨간불(침묵 실패 금지) / 처리중 고아 락 자동 회수 / 발행완료 마감을 push 후 finalize로(실제 커밋 SHA 기록). 크로스데이 재시도 멱등성 포함. 테스트 `_test_close_loop.py` 19체크.
+- 🔄 **진행 중**: 새 구조 첫 자동발행 e2e (cpp-pointer-param, 노션 발행준비 대기). 시스템 감사 결과는 세션 기록 참조 — 남은 부채: 의미검증(Codex 일괄리뷰) 실행, topic_id 파이프 주입, 이미지 매체 v2.
+- **집 세션 체크리스트**: ①밀린 push ②발행실패·처리중 행 회수 ③Codex 리뷰 부채 ④roadmap 갱신.
 
 ## 그만둘 신호 (정직하게)
 
