@@ -23,15 +23,26 @@ notion_publish.py — 노션 "학습 기록" DB → Hugo 블로그 자동발행 
        - 처리방식=기존글추가 → content/post/{slug}/index.md 본문 끝에
          '## 추가 학습 (YYYY-MM-DD)' + 추출 본문 append (멱등: 동일 내용이면 skip).
        - 그 외(신규) → content/post/{slug}/index.md 신규 작성 (멱등).
-  7) 상태 마감:
-       - 성공 → 발행완료 + 발행일 + 발행URL(+발행커밋 placeholder).
-       - 실패 → 발행실패 + 오류요약. 본문 자동수정은 절대 하지 않는다 (규칙 9).
+  7) 상태 마감 (3단계 — 거짓 발행완료 방지):
+       - 성공한 행은 ._publish_state.json 에 기록만 하고 '처리중'으로 둔다.
+         git push 성공 후 `--finalize` 모드가 발행완료 + 발행일 + 발행URL +
+         발행커밋(실제 SHA)을 마감한다. push 실패 시 행은 처리중으로 남고,
+         다음 실행의 고아 락 회수가 발행준비로 되돌려 재시도한다.
+       - 실패 → 즉시 발행실패 + 오류요약. 본문 자동수정은 절대 하지 않는다 (규칙 9).
+       - `--check-failures` 모드: 실패가 1건이라도 있으면 exit 1 → 워크플로가
+         빨간불이 되어 GitHub 실패 알림이 간다 (조용한 실패 금지).
+  8) 고아 락 회수: 이전 실행이 크래시하면 행이 '처리중'으로 영구 방치된다
+     (발행준비 폴링에 영영 안 잡힘). 매 실행 시작 시 last_edited_time 이
+     STALE_PROCESSING_HOURS 를 넘긴 처리중 행을 발행준비로 되돌린다.
 
-환경변수: NOTION_TOKEN, NOTION_DB_ID. (CI Secrets 로만 주입, 로그 노출 금지.)
+실행 모드: (없음)=발행 / --finalize=push 후 마감 / --check-failures=실패 시 exit 1
+환경변수: NOTION_TOKEN, NOTION_DB_ID, PUBLISH_COMMIT_SHA(finalize).
+(CI Secrets 로만 주입, 로그 노출 금지.)
 
 자기검증 한계: 이 스크립트는 형식·추적성만 본다. 사실성·이해도는 검증하지 않는다.
 """
 
+import json
 import os
 import re
 import sys
@@ -131,6 +142,13 @@ MARK_BEGIN = "BLOG_MD_BEGIN"
 MARK_END = "BLOG_MD_END"
 BLOG_HEADING = "블로그 본문"
 
+# 발행 스텝 → finalize/check 스텝 간 전달용 상태파일 (커밋 금지 — .gitignore)
+STATE_FILE = os.path.join(ROOT, "._publish_state.json")
+
+# 처리중 행이 이 시간을 넘기면 고아 락으로 보고 발행준비로 회수
+# (정상 실행은 분 단위로 끝남. 같은 실행 안의 락은 절대 이보다 어릴 수 없음)
+STALE_PROCESSING_HOURS = 2
+
 # HTTP 재시도
 MAX_RETRY = 5
 BACKOFF_BASE = 1.5
@@ -204,14 +222,14 @@ def notion_request(method, url, token, json_body=None):
     raise RuntimeError("Notion API 재시도 소진(429/5xx)")
 
 
-def query_ready_pages(token, db_id):
-    """상태=발행준비 인 행을 모두 반환 (pagination)."""
+def query_pages_by_status(token, db_id, status):
+    """상태={status} 인 행을 모두 반환 (pagination)."""
     url = f"{NOTION_API}/databases/{db_id}/query"
     results = []
     cursor = None
     while True:
         body = {
-            "filter": {"property": P_STATUS, "select": {"equals": ST_READY}},
+            "filter": {"property": P_STATUS, "select": {"equals": status}},
             "page_size": 100,
         }
         if cursor:
@@ -223,6 +241,63 @@ def query_ready_pages(token, db_id):
         else:
             break
     return results
+
+
+def query_ready_pages(token, db_id):
+    """상태=발행준비 인 행을 모두 반환."""
+    return query_pages_by_status(token, db_id, ST_READY)
+
+
+def is_stale_processing(page, now_utc, max_age_hours=STALE_PROCESSING_HOURS):
+    """처리중 행이 고아 락인지 판정 — last_edited_time 이 임계보다 오래됐는가.
+
+    락 PATCH 가 last_edited_time 을 갱신하므로, 진행 중인 실행의 락은 항상
+    임계(시간 단위)보다 어리다. 타임스탬프가 없거나 못 읽으면 False(보수적)."""
+    ts = page.get("last_edited_time")
+    if not ts:
+        return False
+    try:
+        edited = datetime.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if edited.tzinfo is None:
+        edited = edited.replace(tzinfo=datetime.timezone.utc)
+    return (now_utc - edited) >= datetime.timedelta(hours=max_age_hours)
+
+
+def recover_stale_processing(token, db_id):
+    """고아 락 회수: 이전 실행이 크래시해 '처리중'으로 영구 방치된 행을
+    발행준비로 되돌린다 (발행준비 폴링에 다시 잡히게).
+
+    반환: (회수 건수, 실패 건수). 실패는 조용히 넘기지 않고 상태파일에 기록돼
+    --check-failures 가 워크플로를 빨간불로 만든다 (침묵 실패 금지)."""
+    try:
+        pages = query_pages_by_status(token, db_id, ST_PROCESSING)
+    except Exception as e:
+        print(f"[ERROR] 처리중 행 조회 실패(고아 락 회수 불가): {e}")
+        return 0, 1
+    if not pages:
+        return 0, 0
+    now = datetime.datetime.now(datetime.timezone.utc)
+    recovered = 0
+    errors = 0
+    for page in pages:
+        if not is_stale_processing(page, now):
+            continue  # 최근 락 — 다른 실행이 진행 중일 수 있으니 건드리지 않음
+        title = prop_title(page.get("properties", {}), P_TITLE) or "(제목없음)"
+        note = ("처리중 고아 락 자동 회수(이전 실행 비정상 종료 추정) — "
+                "발행준비로 되돌려 재시도")
+        try:
+            update_page_props(token, page["id"], {
+                P_STATUS: {"select": {"name": ST_READY}},
+                P_ERROR: {"rich_text": [{"text": {"content": note}}]},
+            })
+            recovered += 1
+            print(f"[RECOVER] 고아 락 회수: '{title}' 처리중 → 발행준비")
+        except Exception as e:
+            errors += 1
+            print(f"[ERROR] 고아 락 회수 실패('{title}'): {e}")
+    return recovered, errors
 
 
 def get_block_children(token, page_id):
@@ -626,6 +701,25 @@ def post_path(slug):
     return os.path.join(POSTS_DIR, slug, "index.md")
 
 
+def _strip_fm_date(text):
+    """front matter 의 date: 줄만 제거한 본문 반환 (크로스데이 재시도 비교용).
+
+    push 는 됐는데 finalize 가 실패한 행을 다음날 재처리하면 pub_date 만 달라진다.
+    그때 '이미 다른 내용으로 존재' 오류 대신 동일 글로 인식해 skip 하기 위함."""
+    lines = text.splitlines()
+    out = []
+    fm_delims = 0
+    for ln in lines:
+        if ln.strip() == "---" and fm_delims < 2:
+            fm_delims += 1
+            out.append(ln)
+            continue
+        if fm_delims == 1 and ln.startswith("date:"):
+            continue
+        out.append(ln)
+    return "\n".join(out)
+
+
 def write_new_post(slug, front_matter, body_md):
     """신규 글 작성. 이미 동일 내용이면 skip(멱등). 반환: 'written' | 'skip'."""
     path = post_path(slug)
@@ -634,6 +728,11 @@ def write_new_post(slug, front_matter, body_md):
         with open(path, "r", encoding="utf-8") as f:
             existing = f.read()
         if existing == content:
+            return "skip"
+        if _strip_fm_date(existing) == _strip_fm_date(content):
+            # 날짜만 다름 = 이전 실행이 push 까지 끝낸 글의 크로스데이 재시도.
+            # 기존 파일(원래 발행일)을 보존하고 마감만 다시 한다.
+            print(f"[INFO] {slug}: 날짜만 다른 동일 글 존재(이전 실행 발행분) → skip")
             return "skip"
         # 이미 다른 내용으로 존재 — 신규인데 충돌. 덮어쓰지 않고 실패.
         raise PublishError(
@@ -689,6 +788,18 @@ def append_to_post(slug, body_md, pub_date):
         )
     with open(path, "r", encoding="utf-8") as f:
         existing = f.read()
+
+    # 크로스데이 재시도 방어: 같은 본문이 *다른 날짜의* 추가 학습 섹션으로 이미
+    # 들어가 있으면(어제 push 후 finalize 실패 → 오늘 재처리) 이중 append 금지.
+    for m in re.finditer(r"(?m)^## 추가 학습 \(\d{4}-\d{2}-\d{2}\)\s*$", existing):
+        sec = _extract_section(existing, m.group(0).strip())
+        if sec is None:
+            continue
+        sec_body = sec.split("\n", 1)[1] if "\n" in sec else ""
+        if sec_body.strip() == body_md.strip():
+            print(f"[INFO] {slug}: 동일 본문의 추가 학습 섹션이 이미 존재"
+                  f"({m.group(0).strip()}) → skip")
+            return "skip"
 
     section_header = f"## 추가 학습 ({pub_date.isoformat()})"
     block = section_header + "\n\n" + body_md.strip("\n")
@@ -796,7 +907,9 @@ def remove_post(slug):
 # ----------------------------------------------------------------------------
 
 def process_page(token, page, ctx_to_cat):
-    """단일 행 발행. 성공하면 'published'/'skip', 실패하면 PublishError."""
+    """단일 행 발행. 락 미획득이면 'lockskip', 성공하면 finalize 용 dict 반환
+    (행은 '처리중'으로 남음 — push 후 --finalize 가 발행완료로 마감),
+    실패하면 PublishError."""
     page_id = page["id"]
     props = page.get("properties", {})
     title = prop_title(props, P_TITLE) or "(제목없음)"
@@ -808,7 +921,7 @@ def process_page(token, page, ctx_to_cat):
     # 락: 처리중으로 전환 (중복발행 방지). 재확인 후 PATCH (방어적).
     # 락 미획득(다른 실행 선점 등)이면 이 행은 건너뛴다.
     if not acquire_processing_lock(token, page_id):
-        return "skip"
+        return "lockskip"
 
     pub_date = today_seoul()
 
@@ -873,19 +986,43 @@ def process_page(token, page, ctx_to_cat):
             remove_post(slug)
         raise PublishError(f"작성된 글 검증 실패(발행 차단): {reason}")
 
-    # 발행커밋 SHA 는 커밋이 다음 워크플로 스텝에서 일어나므로 여기선 placeholder.
-    # (정확한 발행커밋 기록은 커밋 후 finalize 단계가 채우는 게 맞음 — TODO.)
-    commit_placeholder = os.environ.get("GITHUB_SHA", "")[:7] or "pending"
-    set_done(token, page_id, slug, pub_date, commit_placeholder)
-
-    print(f"--- 완료: {result} → content/post/{slug}/index.md "
-          f"(URL {SITE_BASE}/p/{slug}/)")
-    return result
+    # 발행완료 마감은 여기서 하지 않는다 — git push 성공 후 --finalize 단계가
+    # 실제 커밋 SHA 와 함께 마감한다 (push 실패 시 거짓 발행완료 방지).
+    # 그때까지 행은 '처리중' (push 실패 시 다음 실행의 고아 락 회수가 재시도).
+    print(f"--- 작성 완료: {result} → content/post/{slug}/index.md "
+          f"(URL {SITE_BASE}/p/{slug}/ — 마감은 push 후 finalize)")
+    return {
+        "page_id": page_id,
+        "slug": slug,
+        "pub_date": pub_date.isoformat(),
+        "result": result,
+    }
 
 
 # ----------------------------------------------------------------------------
 # main
 # ----------------------------------------------------------------------------
+
+def write_state(state):
+    # 실행 식별자 — 다른 실행의 잔존 상태파일을 finalize 가 신뢰하는 사고 방지
+    state["run_id"] = os.environ.get("GITHUB_RUN_ID", "")
+    with open(STATE_FILE, "w", encoding="utf-8") as f:
+        json.dump(state, f, ensure_ascii=False, indent=2)
+
+
+def read_state():
+    """상태파일 읽기. 없으면 None. CI 에선 같은 실행(run_id)의 파일만 신뢰."""
+    if not os.path.exists(STATE_FILE):
+        return None
+    with open(STATE_FILE, "r", encoding="utf-8") as f:
+        state = json.load(f)
+    my_run = os.environ.get("GITHUB_RUN_ID", "")
+    if my_run and state.get("run_id", "") != my_run:
+        print(f"[ERROR] 상태파일의 run_id 가 현재 실행과 다름 "
+              f"(잔존 파일 의심) — 무시함")
+        return "STALE"
+    return state
+
 
 def main():
     token = os.environ.get("NOTION_TOKEN")
@@ -900,6 +1037,9 @@ def main():
 
     _, _, ctx_to_cat = load_taxonomy()
 
+    # 고아 락 회수: 크래시로 '처리중'에 갇힌 행을 발행준비로 (아래 조회에 잡히게)
+    _, recover_errors = recover_stale_processing(token, db_id)
+
     try:
         pages = query_ready_pages(token, db_id)
     except Exception as e:
@@ -908,10 +1048,13 @@ def main():
 
     if not pages:
         print("발행준비 상태의 행이 없습니다. 종료.")
+        write_state({"to_finalize": [], "published": 0, "failed": 0,
+                     "skipped": 0, "recover_errors": recover_errors})
         sys.exit(0)
 
     print(f"발행준비 행: {len(pages)}개")
 
+    to_finalize = []
     published = 0
     failed = 0
     skipped = 0
@@ -919,10 +1062,11 @@ def main():
         page_id = page["id"]
         try:
             result = process_page(token, page, ctx_to_cat)
-            if result == "skip":
+            if result == "lockskip":
                 skipped += 1
             else:
                 published += 1
+                to_finalize.append(result)
         except PublishError as e:
             failed += 1
             print(f"[FAIL] 발행실패: {e}")
@@ -933,12 +1077,97 @@ def main():
             print(f"[ERROR] 예기치 못한 오류: {e}")
             set_failed(token, page_id, f"예기치 못한 오류: {e}")
 
-    print(f"\n요약: 발행 {published} / 멱등skip {skipped} / 실패 {failed}")
+    write_state({
+        "to_finalize": to_finalize,
+        "published": published,
+        "failed": failed,
+        "skipped": skipped,
+        "recover_errors": recover_errors,
+    })
+    print(f"\n요약: 작성 {published} / 락skip {skipped} / 실패 {failed}"
+          f" (마감은 push 후 finalize 단계)")
 
-    # 실패가 있어도 정상 발행분은 커밋되어야 하므로 exit 0.
-    # (검증·커밋은 워크플로의 다음 스텝이 담당. 형식 오류는 validate_posts 가 또 막는다.)
+    # 실패가 있어도 정상 발행분은 커밋되어야 하므로 여기선 exit 0.
+    # 실패 알림은 마지막 --check-failures 스텝이 워크플로를 빨간불로 만들어 처리.
     sys.exit(0)
 
 
+def run_finalize():
+    """push 성공 후 마감: 상태파일의 성공 행들을 발행완료 + 실제 커밋 SHA 로 PATCH.
+
+    여기 도달했다 = push 까지 성공. 마감 PATCH 가 실패한 행은 '처리중'으로 남고
+    다음 실행의 고아 락 회수 → 재시도(멱등 작성이라 중복 없음)로 자연 복구된다."""
+    token = os.environ.get("NOTION_TOKEN")
+    if not token:
+        print("[SKIP] NOTION_TOKEN 미설정 — finalize 건너뜀.")
+        return 0
+    state = read_state()
+    if state is None:
+        print("[SKIP] 상태파일 없음 — 발행 스텝이 안 돌았거나 행이 없었음.")
+        return 0
+    if state == "STALE":
+        return 1  # 다른 실행의 잔존 파일 — 마감 거부 (행은 고아 락 회수가 처리)
+    items = state.get("to_finalize", [])
+    if not items:
+        print("마감할 행 없음.")
+        return 0
+
+    sha = (os.environ.get("PUBLISH_COMMIT_SHA")
+           or os.environ.get("GITHUB_SHA") or "")[:7] or "pending"
+    if os.environ.get("PUBLISH_PUSHED") == "false":
+        # 새 커밋 없이 마감 = 이전 실행이 push 까지 끝낸 행의 멱등 재시도
+        print("[INFO] 이번 실행은 새 커밋 없음 — 기존 발행분 재마감(멱등 재시도)")
+    errors = 0
+    for it in items:
+        slug = it.get("slug", "?")
+        try:
+            pub_date = datetime.date.fromisoformat(it["pub_date"])
+            set_done(token, it["page_id"], slug, pub_date, sha)
+            print(f"[DONE] 발행완료 마감: {slug} (발행커밋 {sha})")
+        except Exception as e:
+            errors += 1
+            print(f"[ERROR] 마감 실패({slug}): {e}")
+            # 빠른 자가복구 시도: 발행준비로 되돌려 다음 실행이 즉시 재시도하게
+            # (작성은 멱등 + 크로스데이 방어 있음). 이것도 실패하면 처리중으로
+            # 남고 2시간 뒤 고아 락 회수가 처리.
+            try:
+                update_page_props(token, it["page_id"], {
+                    P_STATUS: {"select": {"name": ST_READY}},
+                    P_ERROR: {"rich_text": [{"text": {"content":
+                        "발행완료 마감 PATCH 실패 — 발행준비로 복귀, 다음 실행이 재시도"}}]},
+                })
+                print(f"        ({slug} 발행준비로 복귀 — 다음 실행이 재마감)")
+            except Exception as e2:
+                print(f"        (복귀도 실패: {e2} — 처리중으로 남음, "
+                      f"고아 락 회수가 처리)")
+    return 1 if errors else 0
+
+
+def run_check_failures():
+    """발행실패가 1건이라도 있으면 exit 1 — 워크플로를 빨간불로 만들어
+    GitHub 실패 알림(메일)을 유도한다. 조용한 실패 금지."""
+    state = read_state()
+    if state is None:
+        print("상태파일 없음 — 발행 스텝 미실행. 통과.")
+        return 0
+    if state == "STALE":
+        return 1
+    failed = int(state.get("failed", 0))
+    recover_errors = int(state.get("recover_errors", 0))
+    if failed > 0 or recover_errors > 0:
+        print(f"[RED] 발행실패 {failed}건 / 고아 락 회수 실패 {recover_errors}건 — "
+              f"노션 DB 의 발행실패·처리중 행을 확인하라. "
+              f"(정상 발행분은 이미 커밋·마감됨. 이 빨간불은 알림용)")
+        return 1
+    print("발행실패 0건.")
+    return 0
+
+
 if __name__ == "__main__":
-    main()
+    mode = sys.argv[1] if len(sys.argv) > 1 else ""
+    if mode == "--finalize":
+        sys.exit(run_finalize())
+    elif mode == "--check-failures":
+        sys.exit(run_check_failures())
+    else:
+        main()

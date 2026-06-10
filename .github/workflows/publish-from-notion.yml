@@ -1,7 +1,9 @@
 # ============================================================
 #  노션 "학습 기록" DB → 블로그 자동발행 (LLM 없는 멍청한 파이프)
-#  발행준비 행 폴링 → 본문 추출 → front matter 조립 → 파일 작성
-#  → 검증 → 변경 있으면 commit + push (push 가 hugo.yml 빌드 트리거)
+#  고아 락 회수 → 발행준비 행 폴링 → 본문 추출 → front matter 조립
+#  → 파일 작성 → 검증 → commit + push (push 가 hugo.yml 빌드 트리거)
+#  → finalize (push 성공 후에만 발행완료 마감 — 거짓 발행완료 방지)
+#  → 실패 행 있으면 워크플로 빨간불 (조용한 실패 금지, 알림 메일 유도)
 #  SYSTEM-SPEC 1·8·9 참고. 권한은 contents:write 만.
 # ============================================================
 name: Publish from Notion
@@ -57,6 +59,7 @@ jobs:
           fi
 
       - name: 변경 있으면 커밋 & 푸시
+        id: push
         run: |
           if [ -n "$(git status --porcelain content/)" ]; then
             git config user.name  "github-actions[bot]"
@@ -65,6 +68,23 @@ jobs:
             git commit -m "자동발행: 노션→블로그"
             git push
             echo "변경 푸시 완료 — hugo.yml 빌드가 트리거됩니다."
+            echo "pushed=true" >> "$GITHUB_OUTPUT"
           else
+            # 변경 없음 = 이전 실행이 push 까지 끝낸 멱등 재시도일 수 있음
             echo "발행할 변경 없음 — 커밋 생략."
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
           fi
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      # push 성공 후에만 노션을 발행완료로 마감 (실제 발행커밋 SHA 기록).
+      # push 실패 시 이 스텝은 안 돌고, 행은 처리중 → 다음 실행이 고아 락 회수.
+      - name: 발행완료 마감 (finalize)
+        env:
+          PUBLISH_COMMIT_SHA: ${{ steps.push.outputs.sha }}
+          PUBLISH_PUSHED: ${{ steps.push.outputs.pushed }}
+        run: python scripts/notion_publish.py --finalize
+
+      # 발행실패 행이 있으면 워크플로를 실패로 표시 → GitHub 알림 메일.
+      # (정상 발행분은 위에서 이미 커밋·마감됨 — 이 빨간불은 순수 알림용)
+      - name: 발행실패 있으면 빨간불
+        run: python scripts/notion_publish.py --check-failures
